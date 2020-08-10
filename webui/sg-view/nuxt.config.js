@@ -59,6 +59,6 @@ module.exports = {
   ** this line may seem redundant, it ensures that the client receives the server-defined variable.
    */
   env: {
-    HISTORY_URL: process.env.HISTORY_URL || 'http://localhost:8001',
+    HISTORY_URL: process.env.HISTORY_URL || 'http://localhost:8001/fixtures/history-output.json',
   }
 };
