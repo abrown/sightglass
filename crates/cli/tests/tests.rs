@@ -1,6 +1,7 @@
 use assert_cmd::prelude::*;
 use predicates::prelude::*;
 use sightglass_data::Measurement;
+use sightglass_fingerprint::{Benchmark, Machine};
 use std::path::PathBuf;
 use std::process::Command;
 
@@ -234,4 +235,43 @@ fn benchmark_effect_size() -> anyhow::Result<()> {
         );
 
     Ok(())
+}
+
+#[test]
+fn fingerprint_machine() {
+    let assert = sightglass_cli()
+        .arg("fingerprint")
+        .arg("--kind")
+        .arg("machine")
+        .assert();
+
+    let stdout = std::str::from_utf8(&assert.get_output().stdout).unwrap();
+    eprintln!("=== stdout ===\n{}\n===========", stdout);
+    assert!(serde_json::from_str::<Machine>(stdout).is_ok());
+}
+
+#[test]
+fn fingerprint_benchmark() {
+    let assert = sightglass_cli()
+        .arg("fingerprint")
+        .arg("--kind")
+        .arg("benchmark")
+        .arg("--output-format")
+        .arg("csv")
+        .arg(benchmark("noop"))
+        .assert();
+
+    let stdout = std::str::from_utf8(&assert.get_output().stdout).unwrap();
+    eprintln!("=== stdout ===\n{}\n===========", stdout);
+    let mut reader = csv::Reader::from_reader(stdout.as_bytes());
+    for measurement in reader.deserialize::<Benchmark>() {
+        drop(measurement.unwrap());
+    }
+
+    assert
+        .stdout(
+            predicate::str::starts_with("name,path,hash,size\n")
+                .and(predicate::str::contains("noop/benchmark.wasm")),
+        )
+        .success();
 }

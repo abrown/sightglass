@@ -36,6 +36,7 @@ members = [
     "crates/artifact",
     "crates/cli",
     "crates/data",
+    "crates/fingerprint",
     "crates/recorder",
     "webui/sg-history"
 ]

@@ -3,6 +3,7 @@ mod build_benchmark;
 mod build_engine;
 mod clean;
 mod effect_size;
+mod fingerprint;
 mod summarize;
 mod validate;
 
@@ -12,6 +13,7 @@ use build_benchmark::BuildBenchmarkCommand;
 use build_engine::BuildEngineCommand;
 use clean::CleanCommand;
 use effect_size::EffectSizeCommand;
+use fingerprint::FingerprintCommand;
 use log::trace;
 use structopt::{clap::AppSettings, StructOpt};
 use summarize::SummarizeCommand;
@@ -35,26 +37,28 @@ fn main() -> Result<()> {
     ],
 )]
 enum SightglassCommand {
+    Benchmark(BenchmarkCommand),
     BuildBenchmark(BuildBenchmarkCommand),
     BuildEngine(BuildEngineCommand),
-    Benchmark(BenchmarkCommand),
-    Validate(ValidateCommand),
-    Summarize(SummarizeCommand),
-    EffectSize(EffectSizeCommand),
     Clean(CleanCommand),
+    EffectSize(EffectSizeCommand),
+    Fingerprint(FingerprintCommand),
+    Summarize(SummarizeCommand),
+    Validate(ValidateCommand),
 }
 
 impl SightglassCommand {
     fn execute(&self) -> Result<()> {
         trace!("Executing command: {:?}", &self);
         match self {
+            SightglassCommand::Benchmark(benchmark) => benchmark.execute(),
             SightglassCommand::BuildBenchmark(build) => build.execute(),
             SightglassCommand::BuildEngine(build) => build.execute(),
-            SightglassCommand::Benchmark(benchmark) => benchmark.execute(),
-            SightglassCommand::Validate(validate) => validate.execute(),
-            SightglassCommand::Summarize(summarize) => summarize.execute(),
-            SightglassCommand::EffectSize(effect_size) => effect_size.execute(),
             SightglassCommand::Clean(clean) => clean.execute(),
+            SightglassCommand::EffectSize(effect_size) => effect_size.execute(),
+            SightglassCommand::Fingerprint(fingerprint) => fingerprint.execute(),
+            SightglassCommand::Summarize(summarize) => summarize.execute(),
+            SightglassCommand::Validate(validate) => validate.execute(),
         }
     }
 }
