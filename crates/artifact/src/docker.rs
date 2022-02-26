@@ -3,16 +3,13 @@
 //!
 //! Use the `DOCKER` environment variable to change the binary to use for this; the default is
 //! `"docker"`.
-use crate::{buildinfo, BuildInfo};
+use crate::{buildinfo, BuildInfo, SIGHTGLASS_PROJECT_DIRECTORY};
 use log::{debug, error, info};
+use std::ffi::OsStr;
+use std::fmt::{Display, Formatter};
 use std::path::Path;
 use std::process::{Command, Stdio};
 use std::string::FromUtf8Error;
-use std::{
-    borrow::Cow,
-    fmt::{Display, Formatter},
-};
-use std::{collections::HashMap, ffi::OsStr};
 use std::{convert::TryFrom, path::PathBuf};
 use std::{env, fmt, fs, io};
 use std::{
@@ -46,7 +43,7 @@ impl Dockerfile {
     pub fn extract<SRC: AsRef<Path>, DST: AsRef<Path>>(
         &self,
         files: &[(SRC, DST)],
-        args: Option<DockerBuildArgs>,
+        args: Option<BuildInfo>,
     ) -> Result<()> {
         info!("Building Dockerfile: {}", self.0.display());
         let image_id = build_image(&self.0, args)?;
@@ -83,6 +80,25 @@ impl Dockerfile {
             .map(|l| buildinfo::split_pair(&l.trim_start_matches("ARG ")))
             .collect())
     }
+
+    /// Calculate the path to a well-known engine Dockerfile, e.g.,
+    /// `$SIGHTGLASS_PROJECT/engines/<engine>/Dockerfile`.
+    ///
+    /// ```
+    /// # use sightglass_artifact::Dockerfile;
+    /// assert!(Dockerfile::from_known_engine("wasmtime").is_ok());
+    /// ```
+    pub fn from_known_engine(slug: &str) -> Result<Self> {
+        let mut path = PathBuf::from(SIGHTGLASS_PROJECT_DIRECTORY);
+        path.push("engines");
+        path.push(slug);
+        path.push("Dockerfile");
+        if path.exists() {
+            Ok(Self::from(path))
+        } else {
+            Err(DockerError::NotFound(path))
+        }
+    }
 }
 
 impl Into<PathBuf> for Dockerfile {
@@ -100,26 +116,10 @@ impl fmt::Display for Dockerfile {
     }
 }
 
-pub struct DockerBuildArgs<'a>(HashMap<Cow<'a, str>, Cow<'a, str>>);
-impl<'a> DockerBuildArgs<'a> {
-    pub fn new() -> Self {
-        Self(HashMap::new())
-    }
-    pub fn set<S>(&mut self, key: S, value: S)
-    where
-        S: Into<Cow<'a, str>>,
-    {
-        self.0.insert(key.into(), value.into());
-    }
-}
-
 pub type Result<T> = std::result::Result<T, DockerError>;
 
 /// Build an image from a Dockerfile with the Dockerfile's parent directory as context.
-pub fn build_image<P: AsRef<Path>>(
-    dockerfile: P,
-    args: Option<DockerBuildArgs<'_>>,
-) -> Result<ImageId> {
+pub fn build_image<P: AsRef<Path>>(dockerfile: P, args: Option<BuildInfo>) -> Result<ImageId> {
     let context_dir = dockerfile
         .as_ref()
         .parent()
@@ -132,7 +132,7 @@ pub fn build_image<P: AsRef<Path>>(
     command.arg("build").arg("-");
 
     if let Some(args) = args {
-        for (k, v) in args.0 {
+        for (k, v) in args.iter() {
             command.arg("--build-arg").arg(format!("{}={}", k, v));
         }
     }
@@ -243,6 +243,8 @@ pub enum DockerError {
     FailedExecution(String),
     #[error("failed to parse an ID")]
     FailedParsingId(#[from] FromUtf8Error),
+    #[error("unable to find Dockerfile at path: {0}")]
+    NotFound(PathBuf),
 }
 
 pub type ImageId = DockerId;

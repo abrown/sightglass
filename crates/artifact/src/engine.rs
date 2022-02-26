@@ -1,7 +1,7 @@
 use crate::{
-    buildinfo, sightglass_data_dir,
+    buildinfo, git, sightglass_data_dir,
     util::{sha256, slug},
-    BuildInfo, DockerBuildArgs, Dockerfile, GitLocation,
+    BuildInfo, Dockerfile, GitLocation,
 };
 use anyhow::{anyhow, Result};
 use log;
@@ -91,26 +91,26 @@ pub fn build_engine(engine: &str, engine_path: &Path) -> Result<()> {
     let (dockerfile, args) = if Path::new(engine).exists() {
         (Dockerfile::from(PathBuf::from(engine)), None)
     } else {
-        use std::str::FromStr;
-        let engine_ref = EngineRef::from_str(engine)?;
-        let dockerfile =
-            Dockerfile::from(get_known_dockerfile_path(&engine_ref.engine.to_string())?);
-
-        // Set up any additional arguments for building the library.
-        let mut args = DockerBuildArgs::new();
-        if let Some(revision) = &engine_ref.git.revision {
-            args.set("REVISION".to_string(), revision.clone())
-        }
-        if let Some(repository) = &engine_ref.git.repository {
-            args.set("REPOSITORY".to_string(), repository.clone())
-        }
-
-        (dockerfile, Some(args))
+        let cli_buildinfo = BuildInfo::parse_uri(engine)?;
+        let engine_name = cli_buildinfo
+            .get("NAME")
+            .expect("BUILDINFO must have a name");
+        let dockerfile = Dockerfile::from_known_engine(engine_name)?;
+        let mut buildinfo = dockerfile.default_buildinfo()?.merge(cli_buildinfo);
+        let repository = buildinfo
+            .get("REPOSITORY")
+            .expect("BUILDINFO must have a REPOSITORY value");
+        let revision = buildinfo
+            .get("REVISION")
+            .expect("BUILDINFO must have a REVISION value");
+        let commit = git::resolve_to_commit(repository, revision)?;
+        buildinfo.set("COMMIT".to_string(), commit);
+        (dockerfile, Some(buildinfo))
     };
 
     log::debug!("Using Dockerfile at path: {}", dockerfile);
     let container_engine_path = format!("/{}", get_engine_filename());
-    let build_info_path = &Path::join(&engine_dir, ".build-info");
+    let build_info_path = &Path::join(&engine_dir, buildinfo::DEFAULT_FILE_NAME);
     let files = [
         (container_engine_path, engine_path),
         ("/.build-info".to_string(), build_info_path),

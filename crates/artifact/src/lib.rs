@@ -9,13 +9,15 @@ use anyhow::{Context, Result};
 use std::{fs, path::PathBuf};
 
 pub use buildinfo::BuildInfo;
-pub use docker::{DockerBuildArgs, Dockerfile};
+pub use docker::Dockerfile;
 pub use engine::{
     build_engine, get_built_engine, get_known_dockerfile_path, get_known_engine_path, list_engines,
     EngineName,
 };
-pub use git::GitLocation;
+pub use git::{resolve_to_commit, GitLocation};
 pub use wasm::WasmBenchmark;
+
+pub const SIGHTGLASS_PROJECT_DIRECTORY: &'static str = env!("SIGHTGLASS_PROJECT_DIRECTORY");
 
 /// Get the local directory where sightglass stores cached data.
 pub fn sightglass_data_dir() -> Result<PathBuf> {

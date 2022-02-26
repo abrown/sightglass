@@ -6,9 +6,17 @@ use std::{collections::BTreeMap, fmt, io, iter::FromIterator, path::Path};
 /// The default file name used for [BuildInfo] files.
 pub const DEFAULT_FILE_NAME: &'static str = ".build-info";
 
-/// A collection of variables and values used to reproduce a build of some artifact.
-#[derive(Debug)]
-pub struct BuildInfo(BTreeMap<String, String>);
+/// A collection of variable-value pairs used to reproduce a build of some artifact. These pairs
+/// are representable as either:
+/// - a URI-like string, e.g., `wasmtime?REPOSITORY=https://...&COMMIT=...
+/// - a newline-separated file, e.g.,
+///   ```text
+///   NAME=wasmtime
+///   REPOSITORY=https://...
+///   COMMIT=...
+///   ```
+#[derive(Debug, PartialEq)]
+pub struct BuildInfo(BTreeMap<String, String>); // TODO implement as a `Cow<'a, str>` instead.
 impl BuildInfo {
     /// Return the [BuildInfo] name; every artifact with associated [BuildInfo] is expected to have
     /// a name.
@@ -33,6 +41,31 @@ impl BuildInfo {
     /// ```
     pub fn get(&self, variable: &str) -> Option<&str> {
         self.0.get(variable).map(String::as_str)
+    }
+
+    /// Modify one of the [BuildInfo] values.
+    ///
+    /// ```
+    /// # use sightglass_artifact::BuildInfo;
+    /// let mut buildinfo = BuildInfo::parse_uri("a").unwrap();
+    /// buildinfo.set("NAME", "b");
+    /// assert_eq!("b", buildinfo.as_uri());
+    /// ```
+    pub fn set<S: Into<String>>(&mut self, variable: S, value: S) -> Option<String> {
+        self.0.insert(variable.into(), value.into())
+    }
+
+    /// Modify one of the [BuildInfo] values.
+    ///
+    /// ```
+    /// # use sightglass_artifact::BuildInfo;
+    /// let buildinfo = BuildInfo::parse_uri("a").unwrap();
+    /// let mut iter = buildinfo.iter();
+    /// assert_eq!(Some(("NAME", "a")), iter.next());
+    /// assert_eq!(None, iter.next());
+    /// ```
+    pub fn iter<'a>(&'a self) -> impl Iterator<Item = (&'a str, &'a str)> {
+        self.0.iter().map(|(a, b)| (a.as_str(), b.as_str()))
     }
 
     /// Parse [BuildInfo] from a URI-like string; e.g., `<name>`,
@@ -145,25 +178,21 @@ impl BuildInfo {
             .collect()
     }
 
-    // pub fn parse<R: io::BufRead>(reader: R) -> Result<Self> {
-    //     Ok(reader
-    //         .lines()
-    //         .filter_map(Result::ok)
-    //         .map(|l| l.trim().to_string())
-    //         .filter(|l| !l.starts_with("#"))
-    //         .map(|l| split_pair(&l))
-    //         .collect())
-    // }
-
-    // pub fn parse_dockerfile<R: io::BufRead>(reader: R) -> Result<Self> {
-    //     Ok(reader
-    //         .lines()
-    //         .filter_map(Result::ok)
-    //         .map(|l| l.trim().to_string())
-    //         .filter(|l| l.starts_with("ARG"))
-    //         .map(|l| split_pair(&l.trim_start_matches("ARG ")))
-    //         .collect())
-    // }
+    /// Merge the given [BuildInfo] on top of the `self` [BuildInfo].
+    ///
+    /// ```
+    /// # use sightglass_artifact::BuildInfo;
+    /// let b1 = BuildInfo::parse_uri("a=1&b=0").unwrap();
+    /// let b2 = BuildInfo::parse_uri("b=2&c=3").unwrap();
+    /// // `b2` overwrites `b1` as it is merged in
+    /// assert_eq!(b1.merge(b2).as_uri(), "a=1&b=2&c=3");
+    /// ```
+    pub fn merge(mut self, incoming: BuildInfo) -> BuildInfo {
+        for (var, val) in incoming.0 {
+            let _ = self.0.insert(var, val);
+        }
+        self
+    }
 }
 
 impl FromIterator<(String, String)> for BuildInfo {
