@@ -1,22 +1,24 @@
-mod artifact;
+mod buildinfo;
 mod docker;
 mod engine;
 mod git;
-mod metadata;
+mod util;
 mod wasm;
 
-use anyhow::Context;
-use std::path::PathBuf;
+use anyhow::{Context, Result};
+use std::{fs, path::PathBuf};
 
-pub use artifact::Artifact;
+pub use buildinfo::BuildInfo;
 pub use docker::{DockerBuildArgs, Dockerfile};
-pub use engine::*;
+pub use engine::{
+    build_engine, get_built_engine, get_known_dockerfile_path, get_known_engine_path, list_engines,
+    EngineName,
+};
 pub use git::GitLocation;
-pub use metadata::{BuildInfo, BuildSystem, GitSource};
 pub use wasm::WasmBenchmark;
 
 /// Get the local directory where sightglass stores cached data.
-pub fn sightglass_data_dir() -> anyhow::Result<PathBuf> {
+pub fn sightglass_data_dir() -> Result<PathBuf> {
     let mut p = dirs::data_local_dir().ok_or_else(|| {
         anyhow::anyhow!(
             "missing an application data folder for storing sightglass engines; e.g. \
@@ -28,7 +30,7 @@ pub fn sightglass_data_dir() -> anyhow::Result<PathBuf> {
 }
 
 /// Clean up and remove any cached data.
-pub fn clean() -> anyhow::Result<()> {
+pub fn clean() -> Result<()> {
     let sightglass_data_dir = sightglass_data_dir()?;
     if !sightglass_data_dir.is_dir() {
         return Ok(());
@@ -38,7 +40,7 @@ pub fn clean() -> anyhow::Result<()> {
         "Recursively removing sightglass cached data in {}",
         sightglass_data_dir.display()
     );
-    std::fs::remove_dir_all(&sightglass_data_dir).with_context(|| {
+    fs::remove_dir_all(&sightglass_data_dir).with_context(|| {
         format!(
             "failed to recursively remove {}",
             sightglass_data_dir.display(),

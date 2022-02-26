@@ -1,8 +1,7 @@
+use crate::util::{sha256, stringify};
 use serde::{Deserialize, Serialize};
-use sha2::Digest;
-use sha2::Sha256;
 use std::path::PathBuf;
-use std::{ffi::OsStr, fs::File, io, path::Path};
+use std::{fs::File, path::Path};
 
 /// Describes a fingerprinted benchmark.
 ///
@@ -36,16 +35,16 @@ impl Benchmark {
             .expect("must have a canonical path to the benchmark");
 
         // Calculate the hash for the benchmark file.
-        let mut file = File::open(&path).expect("the benchmark to be a file that can be opened");
-        let mut hasher = Sha256::new();
-        let size =
-            io::copy(&mut file, &mut hasher).expect("to be able to hash the benchmark bytes");
-        let hash = hasher.finalize();
+        let size = File::open(&path)
+            .expect("should be able to open the benchmark file")
+            .metadata()
+            .expect("should be able to collect the benchmark file size")
+            .len();
 
         Self {
             name: simplify_benchmark_name(&path),
             path: simplify_benchmark_path(&path),
-            hash: hexify(hash.as_slice()),
+            hash: sha256::file(&path),
             size,
         }
     }
@@ -86,21 +85,6 @@ fn simplify_benchmark_path<P: AsRef<Path>>(path: P) -> String {
     } else {
         stringify(path.as_os_str())
     }
-}
-
-/// Provide a common way to create `String`s from `OsStr` in this module.
-fn stringify(s: &OsStr) -> String {
-    s.to_string_lossy().to_string()
-}
-
-/// Create a hexadecimal string from a sequence of bytes.
-fn hexify(bytes: &[u8]) -> String {
-    use std::fmt::Write;
-    let mut s = String::new();
-    for byte in bytes {
-        write!(&mut s, "{:x}", byte).expect("unable to write byte as hex");
-    }
-    s
 }
 
 #[cfg(test)]

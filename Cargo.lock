@@ -1572,6 +1572,7 @@ dependencies = [
  "pretty_env_logger",
  "serde",
  "serde_json",
+ "sha2",
  "tar",
  "thiserror",
  "wasmparser 0.67.0",
@@ -1617,11 +1618,14 @@ dependencies = [
 name = "sightglass-fingerprint"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "bytesize",
  "hostname",
+ "log",
  "os_info",
  "serde",
  "sha2",
+ "sightglass-artifact",
  "sysinfo",
 ]
 

@@ -4,6 +4,7 @@ mod build_engine;
 mod clean;
 mod effect_size;
 mod fingerprint;
+mod list_engines;
 mod summarize;
 mod validate;
 
@@ -14,6 +15,7 @@ use build_engine::BuildEngineCommand;
 use clean::CleanCommand;
 use effect_size::EffectSizeCommand;
 use fingerprint::FingerprintCommand;
+use list_engines::ListEnginesCommand;
 use log::trace;
 use structopt::{clap::AppSettings, StructOpt};
 use summarize::SummarizeCommand;
@@ -43,6 +45,7 @@ enum SightglassCommand {
     Clean(CleanCommand),
     EffectSize(EffectSizeCommand),
     Fingerprint(FingerprintCommand),
+    ListEngines(ListEnginesCommand),
     Summarize(SummarizeCommand),
     Validate(ValidateCommand),
 }
@@ -57,6 +60,7 @@ impl SightglassCommand {
             SightglassCommand::Clean(clean) => clean.execute(),
             SightglassCommand::EffectSize(effect_size) => effect_size.execute(),
             SightglassCommand::Fingerprint(fingerprint) => fingerprint.execute(),
+            SightglassCommand::ListEngines(list_engines) => list_engines.execute(),
             SightglassCommand::Summarize(summarize) => summarize.execute(),
             SightglassCommand::Validate(validate) => validate.execute(),
         }

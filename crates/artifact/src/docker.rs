@@ -3,6 +3,7 @@
 //!
 //! Use the `DOCKER` environment variable to change the binary to use for this; the default is
 //! `"docker"`.
+use crate::{buildinfo, BuildInfo};
 use log::{debug, error, info};
 use std::path::Path;
 use std::process::{Command, Stdio};
@@ -39,30 +40,57 @@ impl Dockerfile {
             .to_path_buf()
     }
 
-    /// Build the Dockerfile and extract the file placed at `source` inside the container to
-    /// `destination` in the host. Optionally pass arguments to the build process (equivalent to
-    /// `docker --arg ...`).
-    pub fn extract<P1: AsRef<Path>, P2: AsRef<Path>>(
+    /// Build the Dockerfile and extract a list of files: `[(source, destination), ...]`. The file
+    /// placed at the `source` inside the container is copied to the `destination` path in the host.
+    /// Optionally pass arguments to the build process (equivalent to `docker --arg ...`).
+    pub fn extract<SRC: AsRef<Path>, DST: AsRef<Path>>(
         &self,
-        source: P1,
-        destination: P2,
+        files: &[(SRC, DST)],
         args: Option<DockerBuildArgs>,
     ) -> Result<()> {
         info!("Building Dockerfile: {}", self.0.display());
         let image_id = build_image(&self.0, args)?;
+
+        // Copy each file from the newly-constructed container to the host.
         let container_id = create_container(&image_id)?;
-        copy_file_from_container(&container_id, source.as_ref(), destination.as_ref())?;
+        for (source, destination) in files {
+            copy_file_from_container(&container_id, source.as_ref(), destination.as_ref())?;
+            assert!(destination.as_ref().exists());
+        }
+
+        // Clean up.
         remove_container(&container_id)?;
         remove_image(&image_id)?;
-        assert!(destination.as_ref().exists());
         Ok(())
     }
+
+    /// Gather the default [BuildInfo] values from a Dockerfile. This assumes that the values are
+    /// listed as Dockerfile `ARG` lines.
+    ///
+    /// ```
+    /// # use sightglass_artifact::Dockerfile;
+    /// # use std::path::PathBuf;
+    /// let df = Dockerfile::from(PathBuf::from("../../engines/wasmtime/Dockerfile"));
+    /// assert_eq!(df.default_buildinfo().unwrap().as_uri(), "BUILD='cargo build -p wasmtime-bench-api'&COMMIT=&FLAGS=--release&REPOSITORY=https://github.com/bytecodealliance/wasmtime/&REVISION=main");
+    /// ```
+    pub fn default_buildinfo(&self) -> Result<BuildInfo> {
+        let file_contents = &fs::read_to_string(&self.0)?;
+        Ok(io::BufReader::new(file_contents.as_bytes())
+            .lines()
+            .filter_map(|l| l.ok())
+            .map(|l| l.trim().to_string())
+            .filter(|l| l.starts_with("ARG"))
+            .map(|l| buildinfo::split_pair(&l.trim_start_matches("ARG ")))
+            .collect())
+    }
 }
+
 impl Into<PathBuf> for Dockerfile {
     fn into(self) -> PathBuf {
         self.0
     }
 }
+
 /// Create a single-string identifier for the Dockerfile: `dockerfile@[hash of file bytes]`.
 impl fmt::Display for Dockerfile {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
