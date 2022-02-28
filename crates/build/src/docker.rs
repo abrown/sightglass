@@ -65,7 +65,7 @@ impl Dockerfile {
     /// listed as Dockerfile `ARG` lines.
     ///
     /// ```
-    /// # use sightglass_artifact::Dockerfile;
+    /// # use sightglass_build::Dockerfile;
     /// # use std::path::PathBuf;
     /// let df = Dockerfile::from(PathBuf::from("../../engines/wasmtime/Dockerfile"));
     /// assert_eq!(df.default_buildinfo().unwrap().as_uri(), "BUILD='cargo build -p wasmtime-bench-api'&COMMIT=&FLAGS=--release&REPOSITORY=https://github.com/bytecodealliance/wasmtime/&REVISION=main");
@@ -85,7 +85,7 @@ impl Dockerfile {
     /// `$SIGHTGLASS_PROJECT/engines/<engine>/Dockerfile`.
     ///
     /// ```
-    /// # use sightglass_artifact::Dockerfile;
+    /// # use sightglass_build::Dockerfile;
     /// assert!(Dockerfile::from_known_engine("wasmtime").is_ok());
     /// ```
     pub fn from_known_engine(slug: &str) -> Result<Self> {

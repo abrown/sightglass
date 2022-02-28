@@ -1562,7 +1562,7 @@ name = "sightglass-api"
 version = "0.1.0"
 
 [[package]]
-name = "sightglass-artifact"
+name = "sightglass-build"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -1595,7 +1595,7 @@ dependencies = [
  "regex",
  "serde_json",
  "sightglass-analysis",
- "sightglass-artifact",
+ "sightglass-build",
  "sightglass-data",
  "sightglass-fingerprint",
  "sightglass-recorder",
@@ -1625,7 +1625,7 @@ dependencies = [
  "os_info",
  "serde",
  "sha2",
- "sightglass-artifact",
+ "sightglass-build",
  "sysinfo",
 ]
 
@@ -1642,7 +1642,7 @@ dependencies = [
  "precision",
  "pretty_env_logger",
  "serde",
- "sightglass-artifact",
+ "sightglass-build",
  "sightglass-data",
  "thiserror",
  "wat",

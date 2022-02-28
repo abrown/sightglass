@@ -23,7 +23,7 @@ impl BuildInfo {
     /// a name.
     ///
     /// ```
-    /// # use sightglass_artifact::BuildInfo;
+    /// # use sightglass_build::BuildInfo;
     /// assert_eq!(Some("test"), BuildInfo::parse_uri("test").unwrap().name());
     /// assert_eq!(Some("test"), BuildInfo::parse_uri("test?a=b").unwrap().name());
     /// assert_eq!(None, BuildInfo::parse_uri("a=b").unwrap().name());
@@ -35,7 +35,7 @@ impl BuildInfo {
     /// Extract one of the [BuildInfo] values.
     ///
     /// ```
-    /// # use sightglass_artifact::BuildInfo;
+    /// # use sightglass_build::BuildInfo;
     /// assert_eq!(Some("test"), BuildInfo::parse_uri("test").unwrap().get("NAME"));
     /// assert_eq!(Some("b"), BuildInfo::parse_uri("test?a=b").unwrap().get("a"));
     /// assert_eq!(None, BuildInfo::parse_uri("a=b").unwrap().get("c"));
@@ -47,7 +47,7 @@ impl BuildInfo {
     /// Modify one of the [BuildInfo] values.
     ///
     /// ```
-    /// # use sightglass_artifact::BuildInfo;
+    /// # use sightglass_build::BuildInfo;
     /// let mut buildinfo = BuildInfo::parse_uri("a").unwrap();
     /// buildinfo.set("NAME", "b");
     /// assert_eq!("b", buildinfo.as_uri());
@@ -59,7 +59,7 @@ impl BuildInfo {
     /// Modify one of the [BuildInfo] values.
     ///
     /// ```
-    /// # use sightglass_artifact::BuildInfo;
+    /// # use sightglass_build::BuildInfo;
     /// let buildinfo = BuildInfo::parse_uri("a").unwrap();
     /// let mut iter = buildinfo.iter();
     /// assert_eq!(Some(("NAME", "a")), iter.next());
@@ -73,7 +73,7 @@ impl BuildInfo {
     /// `<name>?<var1>=<val1>&<var2>=<val2>`
     ///
     /// ```
-    /// # use sightglass_artifact::BuildInfo;
+    /// # use sightglass_build::BuildInfo;
     /// assert_eq!("test", BuildInfo::parse_uri("test").unwrap().as_uri());
     /// assert_eq!("a=b", BuildInfo::parse_uri("a=b").unwrap().as_uri());
     /// assert_eq!("test?a=b", BuildInfo::parse_uri("test?a=b").unwrap().as_uri());
@@ -118,7 +118,7 @@ impl BuildInfo {
     /// Parse [BuildInfo] from newline-separated file contents; e.g.:
     ///
     /// ```
-    /// # use sightglass_artifact::BuildInfo;
+    /// # use sightglass_build::BuildInfo;
     /// let b = BuildInfo::parse_file_string("A=1
     ///  NAME=C
     ///  D=E F G").unwrap();
@@ -143,7 +143,7 @@ impl BuildInfo {
     /// Emit [BuildInfo] as newline-separated string; e.g.:
     ///
     /// ```
-    /// # use sightglass_artifact::BuildInfo;
+    /// # use sightglass_build::BuildInfo;
     /// let b = BuildInfo::parse_uri("test?A=1&B='2 3'").unwrap();
     /// assert_eq!(b.as_file_string(), "A=1
     /// B='2 3'
@@ -163,7 +163,7 @@ impl BuildInfo {
     /// known by `defaults` are discarded.
     ///
     /// ```
-    /// # use sightglass_artifact::BuildInfo;
+    /// # use sightglass_build::BuildInfo;
     /// let b1 = BuildInfo::parse_uri("test?A=1&B=42").unwrap();
     /// let b2 = BuildInfo::parse_uri("test?A=1&B=2&C=3").unwrap();
     /// // Only the settings in `b1` that are different than `b2` are retained.
@@ -182,7 +182,7 @@ impl BuildInfo {
     /// Merge the given [BuildInfo] on top of the `self` [BuildInfo].
     ///
     /// ```
-    /// # use sightglass_artifact::BuildInfo;
+    /// # use sightglass_build::BuildInfo;
     /// let b1 = BuildInfo::parse_uri("a=1&b=0").unwrap();
     /// let b2 = BuildInfo::parse_uri("b=2&c=3").unwrap();
     /// // `b2` overwrites `b1` as it is merged in

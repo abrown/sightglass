@@ -1,6 +1,6 @@
 use crate::util::stringify;
 use serde::{Deserialize, Serialize};
-use sightglass_artifact::hash;
+use sightglass_build::hash;
 use std::path::PathBuf;
 use std::{fs::File, path::Path};
 

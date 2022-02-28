@@ -1,6 +1,6 @@
 use anyhow::Result;
 use pretty_env_logger;
-use sightglass_artifact::{Dockerfile, WasmBenchmark};
+use sightglass_build::{Dockerfile, WasmBenchmark};
 use std::env;
 use std::path::PathBuf;
 

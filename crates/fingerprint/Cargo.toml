@@ -13,5 +13,5 @@ log = "0.4"
 os_info = "3.2"
 serde = { version = "1.0.136", features = ["derive"] }
 sha2 = "0.10"
-sightglass-artifact = { path = "../artifact" }
+sightglass-build = { path = "../build" }
 sysinfo = "0.23"

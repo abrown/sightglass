@@ -1,5 +1,5 @@
 use anyhow::Result;
-use sightglass_artifact::{engine::build_engine, path::get_engine_path_from_buildinfo, BuildInfo};
+use sightglass_build::{engine::build_engine, path::get_engine_path_from_buildinfo, BuildInfo};
 use structopt::StructOpt;
 
 /// Build a Wasm engine from either a BUILD-INFO string or a Dockerfile and print the path to the

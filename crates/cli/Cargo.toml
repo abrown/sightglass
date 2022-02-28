@@ -10,7 +10,7 @@ libloading = "0.7"
 log = "0.4"
 pretty_env_logger = "0.4"
 serde_json = "1.0.64"
-sightglass-artifact = { path = "../artifact" }
+sightglass-build = { path = "../build" }
 sightglass-analysis = { path = "../analysis" }
 sightglass-data = { path = "../data" }
 sightglass-fingerprint = { path = "../fingerprint" }

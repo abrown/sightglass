@@ -1,6 +1,6 @@
 use crate::util::stringify;
 use serde::{Deserialize, Serialize};
-use sightglass_artifact::{hash, BuildInfo, Dockerfile};
+use sightglass_build::{hash, BuildInfo, Dockerfile};
 use std::{fs, path::Path};
 
 /// Describes a WebAssembly engine.

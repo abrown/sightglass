@@ -1,5 +1,5 @@
 use anyhow::Result;
-use sightglass_artifact::engine::list_engines;
+use sightglass_build::engine::list_engines;
 use structopt::StructOpt;
 
 /// List the built Wasm engines known to the Sightglass cache.

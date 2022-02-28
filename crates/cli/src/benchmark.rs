@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use rand::{rngs::SmallRng, Rng, SeedableRng};
-use sightglass_artifact::engine::get_built_engine;
+use sightglass_build::engine::get_built_engine;
 use sightglass_data::{Format, Measurement, Phase};
 use sightglass_recorder::measure::Measurements;
 use sightglass_recorder::{bench_api::BenchApi, benchmark::benchmark, measure::MeasureType};

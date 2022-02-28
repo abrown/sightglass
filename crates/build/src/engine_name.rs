@@ -6,7 +6,7 @@ use std::{borrow::Cow, fmt, path::Path};
 /// Describes the shortened name for a built engine (i.e., an alias).
 ///
 /// ```
-/// # use sightglass_artifact::EngineName;
+/// # use sightglass_build::EngineName;
 /// let en: EngineName = "<engine>-<slug>".parse().unwrap();
 /// assert_eq!(en.to_string(), "<engine>-<slug>");
 /// ```
@@ -39,7 +39,7 @@ impl<'a> EngineName<'a> {
     /// `/home/user/cache/engine-ab32ddf` -> `engine-ab32ddf`.
     ///
     /// ```
-    /// # use sightglass_artifact::EngineName;
+    /// # use sightglass_build::EngineName;
     /// # use std::path::PathBuf;
     /// # use std::convert::TryFrom;
     /// let en = EngineName::from_cache_directory(PathBuf::from("/home/user/cache/<engine>-<slug>").as_path()).unwrap();

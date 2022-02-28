@@ -45,7 +45,7 @@ pub fn get_engine_path_from_buildinfo(buildinfo: &BuildInfo) -> Result<PathBuf> 
 /// Calculate the path to a built engine's BUILD-INFO file. E.g.:
 ///
 /// ```
-/// # use sightglass_artifact::path::get_buildinfo_path_from_engine_path;
+/// # use sightglass_build::path::get_buildinfo_path_from_engine_path;
 /// # use std::path::PathBuf;
 /// let engine_path = PathBuf::from("/some/libengine.so");
 /// let buildinfo_path = get_buildinfo_path_from_engine_path(&engine_path).unwrap();
