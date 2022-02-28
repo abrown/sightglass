@@ -14,6 +14,9 @@ pub struct Engine {
     pub path: String,
     /// Describes how to rebuild the engine using Sightglass, if this method was used.
     pub rebuild: Option<String>,
+    /// Describes the known configuration when building the engine using Sightglass, if this method
+    /// was used.
+    pub buildinfo: Option<String>,
 }
 
 impl Engine {
@@ -61,6 +64,7 @@ impl Engine {
                 name,
                 path: stringify(library_path),
                 rebuild: Some(format!("sightglass-cli build-engine {}", diffed_buildinfo)),
+                buildinfo: Some(buildinfo_contents),
             }
         } else {
             log::warn!(
@@ -71,6 +75,7 @@ impl Engine {
                 name: format!("custom-{}", hash::slug(&hash::file(&library_path))),
                 path: stringify(library_path),
                 rebuild: None,
+                buildinfo: None,
             }
         }
     }

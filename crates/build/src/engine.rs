@@ -68,7 +68,7 @@ pub fn build_engine(cli_buildinfo: &BuildInfo, engine_path: &Path) -> Result<()>
 }
 
 /// List all known engines in the cache folder.
-pub fn list_engines<'a>() -> Result<Vec<(EngineName<'a>, PathBuf, Option<BuildInfo>)>> {
+pub fn list_engines<'a>() -> Result<Vec<(EngineName<'a>, PathBuf)>> {
     let sightglass_data_dir = get_cache_dir()?;
     let mut engines = vec![];
     for entry in fs::read_dir(sightglass_data_dir)? {
@@ -78,9 +78,7 @@ pub fn list_engines<'a>() -> Result<Vec<(EngineName<'a>, PathBuf, Option<BuildIn
             match EngineName::from_cache_directory(engine_dir.as_path()) {
                 Ok(name) => {
                     let engine_path = Path::join(&engine_dir, get_engine_filename());
-                    let buildinfo_path = get_buildinfo_path_from_engine_path(&engine_path)?;
-                    let buildinfo = BuildInfo::parse_file(buildinfo_path).ok();
-                    engines.push((name, engine_path, buildinfo));
+                    engines.push((name, engine_path));
                 }
                 Err(err) => log::warn!("Invalid engine found at {}: {}", engine_dir.display(), err),
             }
