@@ -6,10 +6,9 @@ use std::{collections::BTreeMap, fmt, io, iter::FromIterator, path::Path};
 
 /// The default file name used for [BuildInfo] files.
 pub const DEFAULT_FILE_NAME: &'static str = ".build-info";
-
 /// A collection of variable-value pairs used to reproduce a build of some artifact. These pairs
 /// are representable as either:
-/// - a URI-like string, e.g., `wasmtime?REPOSITORY=https://...&COMMIT=...
+/// - a URI-like string, e.g., `wasmtime?REPOSITORY=https://...+COMMIT=...
 /// - a newline-separated file, e.g.,
 ///   ```text
 ///   NAME=wasmtime
@@ -70,24 +69,24 @@ impl BuildInfo {
     }
 
     /// Parse [BuildInfo] from a URI-like string; e.g., `<name>`,
-    /// `<name>?<var1>=<val1>&<var2>=<val2>`
+    /// `<name>?<var1>=<val1>+<var2>=<val2>`
     ///
     /// ```
     /// # use sightglass_build::BuildInfo;
     /// assert_eq!("test", BuildInfo::parse_uri("test").unwrap().as_uri());
     /// assert_eq!("a=b", BuildInfo::parse_uri("a=b").unwrap().as_uri());
     /// assert_eq!("test?a=b", BuildInfo::parse_uri("test?a=b").unwrap().as_uri());
-    /// assert_eq!("test?a=b&c=d", BuildInfo::parse_uri("test?a=b&c=d").unwrap().as_uri());
-    /// assert_eq!("test?a=b&c='d e'", BuildInfo::parse_uri("test?a=b&c='d e'").unwrap().as_uri());
+    /// assert_eq!("test?a=b+c=d", BuildInfo::parse_uri("test?a=b+c=d").unwrap().as_uri());
+    /// assert_eq!("test?a=b+c='d e'", BuildInfo::parse_uri("test?a=b+c='d e'").unwrap().as_uri());
     /// ```
     pub fn parse_uri(uri: &str) -> Result<Self> {
         if let Some((name, rest)) = uri.split_once("?") {
-            let mut b = BuildInfo::from_iter(rest.split("&").map(|p| split_pair_str(p)));
+            let mut b = BuildInfo::from_iter(rest.split("+").map(|p| split_pair_str(p)));
             b.0.insert("NAME".to_string(), name.to_string());
             Ok(b)
         } else if uri.contains("=") {
             Ok(BuildInfo::from_iter(
-                uri.split("&").map(|p| split_pair_str(p)),
+                uri.split("+").map(|p| split_pair_str(p)),
             ))
         } else {
             Ok(BuildInfo::from_iter([("NAME", uri)]))
@@ -95,11 +94,12 @@ impl BuildInfo {
     }
 
     /// Emit [BuildInfo] as a URI-like string; e.g., `<name>`,
-    /// `<name>?<var1>=<val1>&<var2>=<val2>`. See [`Self::parse_uri()`].
+    /// `<name>?<var1>=<val1>+<var2>=<val2>`. See [`Self::parse_uri()`].
     pub fn as_uri(&self) -> String {
         let mut uri = self.name().unwrap_or("").to_owned();
 
-        // Interject "&" between each printed variable-value pair.
+        // Interject "+" between each printed variable-value pair. Using "&" is problematic due to
+        // its creation of background processes in shells.
         let mut iter = self.0.iter().filter(|(var, _)| var != &"NAME");
         if let Some(pair) = iter.next() {
             if uri.len() > 0 {
@@ -108,7 +108,7 @@ impl BuildInfo {
             write_pair(&mut uri, pair).unwrap();
         }
         for pair in iter {
-            write!(&mut uri, "&").unwrap();
+            write!(&mut uri, "+").unwrap();
             write_pair(&mut uri, pair).unwrap();
         }
 
@@ -122,7 +122,7 @@ impl BuildInfo {
     /// let b = BuildInfo::parse_file_string("A=1
     ///  NAME=C
     ///  D=E F G").unwrap();
-    /// assert_eq!(b.as_uri(), "C?A=1&D='E F G'")
+    /// assert_eq!(b.as_uri(), "C?A=1+D='E F G'")
     /// ```
     pub fn parse_file_string(file_contents: &str) -> Result<Self> {
         use io::BufRead;
@@ -144,7 +144,7 @@ impl BuildInfo {
     ///
     /// ```
     /// # use sightglass_build::BuildInfo;
-    /// let b = BuildInfo::parse_uri("test?A=1&B='2 3'").unwrap();
+    /// let b = BuildInfo::parse_uri("test?A=1+B='2 3'").unwrap();
     /// assert_eq!(b.as_file_string(), "A=1
     /// B='2 3'
     /// NAME=test
@@ -165,8 +165,8 @@ impl BuildInfo {
     ///
     /// ```
     /// # use sightglass_build::BuildInfo;
-    /// let b1 = BuildInfo::parse_uri("test?A=1&B=42&_D=4").unwrap();
-    /// let b2 = BuildInfo::parse_uri("test?A=1&B=2&C=3").unwrap();
+    /// let b1 = BuildInfo::parse_uri("test?A=1+B=42+_D=4").unwrap();
+    /// let b2 = BuildInfo::parse_uri("test?A=1+B=2+C=3").unwrap();
     /// // Only the settings in `b1` that are different than `b2` are retained. `_D` is ignored.
     /// assert_eq!(b1.diff(b2).as_uri(), "test?B=42");
     /// ```
@@ -188,10 +188,10 @@ impl BuildInfo {
     ///
     /// ```
     /// # use sightglass_build::BuildInfo;
-    /// let b1 = BuildInfo::parse_uri("a=1&b=0").unwrap();
-    /// let b2 = BuildInfo::parse_uri("b=2&c=3").unwrap();
+    /// let b1 = BuildInfo::parse_uri("a=1+b=0").unwrap();
+    /// let b2 = BuildInfo::parse_uri("b=2+c=3").unwrap();
     /// // `b2` overwrites `b1` as it is merged in
-    /// assert_eq!(b1.merge(&b2).as_uri(), "a=1&b=2&c=3");
+    /// assert_eq!(b1.merge(&b2).as_uri(), "a=1+b=2+c=3");
     /// ```
     pub fn merge(mut self, incoming: &BuildInfo) -> BuildInfo {
         for (var, val) in &incoming.0 {
@@ -272,12 +272,12 @@ fn write_pair(f: &mut dyn Write, (var, val): (&String, &String)) -> std::fmt::Re
         "build info variables cannot contain spaces"
     );
     assert!(
-        !var.contains("&"),
-        "build info variables cannot contain ampersands"
+        !var.contains("+"),
+        "build info variables cannot contain plus"
     );
     assert!(
-        !val.contains("&"),
-        "build info values cannot contain ampersands"
+        !val.contains("+"),
+        "build info values cannot contain plus"
     );
     assert!(
         !val.contains("'"),

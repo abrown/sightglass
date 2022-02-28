@@ -68,7 +68,7 @@ impl Dockerfile {
     /// # use sightglass_build::Dockerfile;
     /// # use std::path::PathBuf;
     /// let df = Dockerfile::from(PathBuf::from("../../engines/wasmtime/Dockerfile"));
-    /// assert_eq!(df.default_buildinfo().unwrap().as_uri(), "BUILD='cargo build -p wasmtime-bench-api'&COMMIT=&FLAGS=--release&REPOSITORY=https://github.com/bytecodealliance/wasmtime/&REVISION=main");
+    /// assert_eq!(df.default_buildinfo().unwrap().as_uri(), "BUILD='cargo build -p wasmtime-bench-api'+COMMIT=+FLAGS=--release+REPOSITORY=https://github.com/bytecodealliance/wasmtime/+REVISION=main");
     /// ```
     pub fn default_buildinfo(&self) -> Result<BuildInfo> {
         let file_contents = &fs::read_to_string(&self.0)?;

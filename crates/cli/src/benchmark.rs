@@ -21,9 +21,9 @@ use structopt::StructOpt;
 pub struct BenchmarkCommand {
     /// The benchmark engine(s) with which to run the benchmark.
     ///
-    /// This can be either the path to a shared library implementing the
-    /// benchmarking engine specification or an engine reference: `[engine
-    /// name]@[Git revision]?@[Git repository]?`, e.g. `wasmtime@main`.
+    /// This can be either the path to a shared library implementing the benchmarking engine
+    /// specification or an build-info string (see `build-engine`): `[engine
+    /// name]?[variable]=[value]...`, e.g. `wasmtime?REVISION=v0.33.1`.
     #[structopt(
         long("engine"),
         short("e"),

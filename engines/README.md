@@ -36,5 +36,5 @@ library.
 To modify the construction of an engine, use the `.build-info` string
 
 ```
-sightglass-cli build-engine wasmtime?REVISION=v0.33.1&FLAGS='--release --features new-feature'
+sightglass-cli build-engine wasmtime?REVISION=v0.33.1+FLAGS='--release --features new-feature'
 ```

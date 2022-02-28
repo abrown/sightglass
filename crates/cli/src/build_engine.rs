@@ -11,9 +11,10 @@ pub struct BuildEngineCommand {
     #[structopt(long, short)]
     force_rebuild: bool,
 
-    /// A BUILD-INFO string, e.g. `wasmtime` or `wasmtime?COMMIT=92350bf2` or
-    /// `wasmtime?COMMIT=92350bf2&RUSTC=1.60`). Valid engines are listed in
-    /// `sightglass/engines/<engine>` and modifiable variables are Dockerfile `ARG`s.
+    /// A build-info string, `[engine name]?[variable]=[value]...`; e.g. `wasmtime` or
+    /// `wasmtime?REVISION=92350bf2` or `wasmtime?REVISION=92350bf2+FLAGS='--release --features
+    /// new-feature`. Valid engines are listed in `sightglass/engines/<engine>` and modifiable
+    /// variables are Dockerfile `ARG`s.
     #[structopt(index = 1, required = true, value_name = "BUILD-INFO")]
     buildinfo: BuildInfo,
 }
