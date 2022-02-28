@@ -1,5 +1,6 @@
-use crate::util::{sha256, stringify};
+use crate::util::stringify;
 use serde::{Deserialize, Serialize};
+use sightglass_artifact::hash;
 use std::path::PathBuf;
 use std::{fs::File, path::Path};
 
@@ -44,7 +45,7 @@ impl Benchmark {
         Self {
             name: simplify_benchmark_name(&path),
             path: simplify_benchmark_path(&path),
-            hash: sha256::file(&path),
+            hash: hash::file(&path),
             size,
         }
     }

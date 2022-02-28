@@ -1,6 +1,6 @@
-use crate::util::{sha256, stringify};
+use crate::util::stringify;
 use serde::{Deserialize, Serialize};
-use sightglass_artifact::{BuildInfo, Dockerfile};
+use sightglass_artifact::{hash, BuildInfo, Dockerfile};
 use std::{fs, path::Path};
 
 /// Describes a WebAssembly engine.
@@ -56,7 +56,7 @@ impl Engine {
                 &library_path.display()
             );
             Self {
-                name: format!("custom-{}", sha256::file(&library_path)),
+                name: format!("custom-{}", hash::slug(&hash::file(&library_path))),
                 path: stringify(library_path),
                 rebuild: None,
             }

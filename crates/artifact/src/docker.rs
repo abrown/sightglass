@@ -3,7 +3,7 @@
 //!
 //! Use the `DOCKER` environment variable to change the binary to use for this; the default is
 //! `"docker"`.
-use crate::{buildinfo, BuildInfo, SIGHTGLASS_PROJECT_DIRECTORY};
+use crate::{buildinfo, path::SIGHTGLASS_PROJECT_DIRECTORY, BuildInfo};
 use log::{debug, error, info};
 use std::ffi::OsStr;
 use std::fmt::{Display, Formatter};
