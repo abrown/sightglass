@@ -1,76 +1,10 @@
+mod util;
+
 use assert_cmd::prelude::*;
 use predicates::prelude::*;
 use sightglass_data::Measurement;
-use sightglass_fingerprint::{Benchmark, Machine};
 use std::path::PathBuf;
-use std::process::Command;
-
-/// Get a `Command` for this crate's `sightglass-cli` executable.
-fn sightglass_cli() -> Command {
-    drop(env_logger::try_init());
-    Command::cargo_bin("sightglass-cli").unwrap()
-}
-
-/// Get the path to the engine we are testing with.
-fn test_engine() -> PathBuf {
-    if let Ok(engine) = std::env::var("SIGHTGLASS_TEST_ENGINE") {
-        // Use the engine specified by the environment variable. We use this to
-        // cache built `libwasmtime_bench_api.so`s in CI.
-        engine.into()
-    } else {
-        // Make sure we only ever build Wasmtime once, and don't have N threads
-        // build it in parallel and race to be the one to save it onto the file
-        // system.
-        static BUILD_WASMTIME: std::sync::Once = std::sync::Once::new();
-        BUILD_WASMTIME.call_once(|| {
-            if sightglass_build::path::get_known_engine_path("wasmtime")
-                .unwrap()
-                .is_file()
-            {
-                // A wasmtime engine is already built!
-                return;
-            }
-
-            // Use this instead of `eprintln!` to avoid `cargo test`'s stdio
-            // capturing.
-            use std::io::Write;
-            drop(writeln!(
-                std::io::stderr(),
-                "**************************************************************\n\
-                 *** Building Wasmtime engine; this may take a few minutes. ***\n\
-                 **************************************************************"
-            ));
-
-            let status = Command::cargo_bin("sightglass-cli")
-                .unwrap()
-                .current_dir("../..") // Run in the root of the repo.
-                .arg("build-engine")
-                .arg("wasmtime")
-                .status()
-                .expect("failed to run `sightglass-cli build-engine`");
-            assert!(status.success());
-        });
-        sightglass_build::path::get_known_engine_path("wasmtime").unwrap()
-    }
-}
-
-/// Get a `sightglass-cli benchmark` command that is configured to use our test
-/// engine.
-fn sightglass_cli_benchmark() -> Command {
-    let mut cmd = sightglass_cli();
-    cmd.arg("benchmark").arg("--engine").arg(test_engine());
-    cmd
-}
-
-/// Get the benchmark path for the benchmark with the given name.
-fn benchmark(benchmark_name: &str) -> String {
-    format!("../../benchmarks-next/{}/benchmark.wasm", benchmark_name).into()
-}
-
-#[test]
-fn help() {
-    sightglass_cli().arg("help").assert().success();
-}
+use util::{benchmark, sightglass_cli, sightglass_cli_benchmark, test_engine};
 
 #[test]
 fn benchmark_stop_after_compilation() {
@@ -235,43 +169,4 @@ fn benchmark_effect_size() -> anyhow::Result<()> {
         );
 
     Ok(())
-}
-
-#[test]
-fn fingerprint_machine() {
-    let assert = sightglass_cli()
-        .arg("fingerprint")
-        .arg("--kind")
-        .arg("machine")
-        .assert();
-
-    let stdout = std::str::from_utf8(&assert.get_output().stdout).unwrap();
-    eprintln!("=== stdout ===\n{}\n===========", stdout);
-    assert!(serde_json::from_str::<Machine>(stdout).is_ok());
-}
-
-#[test]
-fn fingerprint_benchmark() {
-    let assert = sightglass_cli()
-        .arg("fingerprint")
-        .arg("--kind")
-        .arg("benchmark")
-        .arg("--output-format")
-        .arg("csv")
-        .arg(benchmark("noop"))
-        .assert();
-
-    let stdout = std::str::from_utf8(&assert.get_output().stdout).unwrap();
-    eprintln!("=== stdout ===\n{}\n===========", stdout);
-    let mut reader = csv::Reader::from_reader(stdout.as_bytes());
-    for measurement in reader.deserialize::<Benchmark>() {
-        drop(measurement.unwrap());
-    }
-
-    assert
-        .stdout(
-            predicate::str::starts_with("name,path,hash,size\n")
-                .and(predicate::str::contains("noop/benchmark.wasm")),
-        )
-        .success();
 }

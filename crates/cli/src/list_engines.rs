@@ -15,9 +15,11 @@ impl ListEnginesCommand {
     pub fn execute(&self) -> Result<()> {
         for (name, path, buildinfo) in list_engines()? {
             println!("{} -> {}", name, path.display());
-            if let Some(buildinfo) = buildinfo {
-                for line in buildinfo.as_file_string().lines() {
-                    println!("  {}", line);
+            if !self.oneline {
+                if let Some(buildinfo) = buildinfo {
+                    for line in buildinfo.as_file_string().lines() {
+                        println!("  {}", line);
+                    }
                 }
             }
         }

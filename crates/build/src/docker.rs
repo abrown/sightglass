@@ -77,7 +77,7 @@ impl Dockerfile {
             .filter_map(|l| l.ok())
             .map(|l| l.trim().to_string())
             .filter(|l| l.starts_with("ARG"))
-            .map(|l| buildinfo::split_pair(&l.trim_start_matches("ARG ")))
+            .map(|l| buildinfo::split_pair_str(&l.trim_start_matches("ARG ")))
             .collect())
     }
 

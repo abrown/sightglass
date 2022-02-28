@@ -77,10 +77,10 @@ pub fn list_engines<'a>() -> Result<Vec<(EngineName<'a>, PathBuf, Option<BuildIn
             let engine_dir = entry.path();
             match EngineName::from_cache_directory(engine_dir.as_path()) {
                 Ok(name) => {
-                    let path = Path::join(&engine_dir, get_engine_filename());
-                    let buildinfo =
-                        BuildInfo::parse_file(Path::join(&path, buildinfo::DEFAULT_FILE_NAME)).ok();
-                    engines.push((name, path, buildinfo));
+                    let engine_path = Path::join(&engine_dir, get_engine_filename());
+                    let buildinfo_path = get_buildinfo_path_from_engine_path(&engine_path)?;
+                    let buildinfo = BuildInfo::parse_file(buildinfo_path).ok();
+                    engines.push((name, engine_path, buildinfo));
                 }
                 Err(err) => log::warn!("Invalid engine found at {}: {}", engine_dir.display(), err),
             }

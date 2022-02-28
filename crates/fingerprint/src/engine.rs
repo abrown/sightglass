@@ -23,32 +23,44 @@ impl Engine {
             .as_ref()
             .canonicalize()
             .expect("must have a canonical path to the engine");
-        let build_info_path = Path::join(
+        let buildinfo_path = Path::join(
             &library_path
                 .parent()
                 .expect("the engine to have a parent directory"),
             ".build-info",
         );
 
-        if let Ok(build_info_contents) = fs::read_to_string(build_info_path) {
-            let build_info = BuildInfo::parse_file_string(&build_info_contents)
+        if let Ok(buildinfo_contents) = fs::read_to_string(buildinfo_path) {
+            // Construct a rebuild string from the information stored in the .build-info file. We
+            // only use the configuration that differs from the defaults in the Dockerfile for
+            // brevity and human-readability.
+            let buildinfo = BuildInfo::parse_file_string(&buildinfo_contents)
                 .expect("the .build-info file could not be parsed");
-            let name = build_info
-                .get("ENGINE")
-                .expect(".build-info must have a valid ENGINE value")
+            let name = buildinfo
+                .name()
+                .expect(".build-info must have a valid NAME value")
                 .to_owned();
-
             let dockerfile = Dockerfile::from_known_engine(&name)
                 .expect("to have a Dockerfile for known engine");
-            let build_info_defaults = dockerfile
+            let buildinfo_defaults = dockerfile
                 .default_buildinfo()
                 .expect("the Dockerfile could not be parsed");
+            let mut diffed_buildinfo = buildinfo.diff(buildinfo_defaults);
 
-            let diffed_build_info = build_info.diff(build_info_defaults);
+            // Also, we want to override the REVISION with the actually-built commit. REVISION may
+            // have been a branch, e.g., that has new commits in it and we want a reproducible
+            // build.
+            diffed_buildinfo.set(
+                "REVISION",
+                buildinfo
+                    .get("_COMMIT")
+                    .expect(".build-info should contain a _COMMIT value"),
+            );
+
             Self {
                 name,
                 path: stringify(library_path),
-                rebuild: Some(diffed_build_info.to_string()),
+                rebuild: Some(format!("sightglass-cli build-engine {}", diffed_buildinfo)),
             }
         } else {
             log::warn!(

@@ -105,11 +105,11 @@ impl BuildInfo {
             if uri.len() > 0 {
                 write!(&mut uri, "?").unwrap();
             }
-            write_pair_str(&mut uri, pair).unwrap();
+            write_pair(&mut uri, pair).unwrap();
         }
         for pair in iter {
             write!(&mut uri, "&").unwrap();
-            write_pair_str(&mut uri, pair).unwrap();
+            write_pair(&mut uri, pair).unwrap();
         }
 
         uri
@@ -153,28 +153,33 @@ impl BuildInfo {
     pub fn as_file_string(&self) -> String {
         let mut s = String::new();
         for pair in self.0.iter() {
-            write_pair_str(&mut s, pair).unwrap();
+            write_pair(&mut s, pair).unwrap();
             write!(&mut s, "\n").unwrap();
         }
         s
     }
 
-    /// Generate a new [BuildInfo] with only the differences from `defaults`; any variables not
-    /// known by `defaults` are discarded.
+    /// Generate a new [BuildInfo] with only the NAME and any differences from `defaults`; any
+    /// variables not known by `defaults` are discarded. Also, this ignores any variables that begin
+    /// with `_`.
     ///
     /// ```
     /// # use sightglass_build::BuildInfo;
-    /// let b1 = BuildInfo::parse_uri("test?A=1&B=42").unwrap();
+    /// let b1 = BuildInfo::parse_uri("test?A=1&B=42&_D=4").unwrap();
     /// let b2 = BuildInfo::parse_uri("test?A=1&B=2&C=3").unwrap();
-    /// // Only the settings in `b1` that are different than `b2` are retained.
-    /// assert_eq!(b1.diff(b2).as_uri(), "B=42");
+    /// // Only the settings in `b1` that are different than `b2` are retained. `_D` is ignored.
+    /// assert_eq!(b1.diff(b2).as_uri(), "test?B=42");
     /// ```
     pub fn diff(&self, defaults: BuildInfo) -> BuildInfo {
         self.0
             .iter()
-            .filter(|(var, val)| match defaults.0.get(*var) {
-                Some(default_val) => *val != default_val,
-                None => false,
+            .filter(|(var, _)| !var.starts_with("_"))
+            .filter(|(var, val)| {
+                *var == "NAME"
+                    || match defaults.0.get(*var) {
+                        Some(default_val) => *val != default_val,
+                        None => false,
+                    }
             })
             .collect()
     }
@@ -223,6 +228,7 @@ impl<'a> FromIterator<(&'a String, &'a String)> for BuildInfo {
     }
 }
 
+// TODO de-duplicate some of these `FromIterator` implementations.
 impl<'a> FromIterator<(&'a str, &'a str)> for BuildInfo {
     fn from_iter<T: IntoIterator<Item = (&'a str, &'a str)>>(iter: T) -> Self {
         let mut map = BTreeMap::new();
@@ -235,21 +241,11 @@ impl<'a> FromIterator<(&'a str, &'a str)> for BuildInfo {
 
 impl fmt::Display for BuildInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // Interject "&" between each printed variable-value pair.
-        let mut iter = self.0.iter();
-        if let Some(pair) = iter.next() {
-            write_pair(f, pair)?;
-        }
-        for pair in iter {
-            write!(f, "&")?;
-            write_pair(f, pair)?;
-        }
-
-        Ok(())
+        write!(f, "{}", self.as_uri())
     }
 }
 
-fn split_pair_str(line: &str) -> (&str, &str) {
+pub(crate) fn split_pair_str(line: &str) -> (&str, &str) {
     let (var, val) = line
         .trim()
         .split_once("=")
@@ -257,6 +253,7 @@ fn split_pair_str(line: &str) -> (&str, &str) {
     (var, val.trim_matches(|c| c == '"' || c == '\''))
 }
 
+// TODO de-duplicate this and `split_pair_str`.
 pub(crate) fn split_pair(line: &str) -> (String, String) {
     let (var, val) = line
         .trim()
@@ -268,32 +265,8 @@ pub(crate) fn split_pair(line: &str) -> (String, String) {
     )
 }
 
-// Write a variable-value pair, e.g., a='b c d'
-fn write_pair(f: &mut std::fmt::Formatter<'_>, (var, val): (&String, &String)) -> std::fmt::Result {
-    assert!(
-        !var.contains(" "),
-        "build info variables cannot contain spaces"
-    );
-    assert!(
-        !var.contains("&"),
-        "build info variables cannot contain ampersands"
-    );
-    assert!(
-        !val.contains("&"),
-        "build info values cannot contain ampersands"
-    );
-    assert!(
-        !val.contains("'"),
-        "build info values cannot contain single quotes"
-    );
-    if val.contains(" ") {
-        write!(f, "{}='{}'", var, val)
-    } else {
-        write!(f, "{}={}", var, val)
-    }
-}
-
-fn write_pair_str(f: &mut dyn Write, (var, val): (&String, &String)) -> std::fmt::Result {
+/// Write a variable-value pair, escaping as necessary.
+fn write_pair(f: &mut dyn Write, (var, val): (&String, &String)) -> std::fmt::Result {
     assert!(
         !var.contains(" "),
         "build info variables cannot contain spaces"
