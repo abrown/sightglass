@@ -11,5 +11,4 @@ mod wasm;
 pub use buildinfo::BuildInfo;
 pub use docker::Dockerfile;
 pub use engine_name::EngineName;
-pub use git::resolve_to_commit;
 pub use wasm::WasmBenchmark;
