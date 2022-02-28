@@ -43,7 +43,7 @@ impl Dockerfile {
     pub fn extract<SRC: AsRef<Path>, DST: AsRef<Path>>(
         &self,
         files: &[(SRC, DST)],
-        args: Option<BuildInfo>,
+        args: Option<&BuildInfo>,
     ) -> Result<()> {
         info!("Building Dockerfile: {}", self.0.display());
         let image_id = build_image(&self.0, args)?;
@@ -101,6 +101,12 @@ impl Dockerfile {
     }
 }
 
+impl AsRef<Path> for Dockerfile {
+    fn as_ref(&self) -> &Path {
+        self.0.as_path()
+    }
+}
+
 impl Into<PathBuf> for Dockerfile {
     fn into(self) -> PathBuf {
         self.0
@@ -119,7 +125,7 @@ impl fmt::Display for Dockerfile {
 pub type Result<T> = std::result::Result<T, DockerError>;
 
 /// Build an image from a Dockerfile with the Dockerfile's parent directory as context.
-pub fn build_image<P: AsRef<Path>>(dockerfile: P, args: Option<BuildInfo>) -> Result<ImageId> {
+pub fn build_image<P: AsRef<Path>>(dockerfile: P, args: Option<&BuildInfo>) -> Result<ImageId> {
     let context_dir = dockerfile
         .as_ref()
         .parent()

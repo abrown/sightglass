@@ -1,5 +1,5 @@
 use anyhow::Result;
-use sightglass_artifact::{build_engine, get_known_engine_path};
+use sightglass_artifact::{build_engine, get_engine_path_from_buildinfo, BuildInfo};
 use structopt::StructOpt;
 
 /// Build a Wasm engine from either a BUILD-INFO string or a Dockerfile and print the path to the
@@ -11,18 +11,18 @@ pub struct BuildEngineCommand {
     #[structopt(long, short)]
     force_rebuild: bool,
 
-    /// Either a BUILD-INFO string (e.g. `wasmtime` or `wasmtime?COMMIT=92350bf2` or
-    /// `wasmtime?COMMIT=92350bf2&RUSTC=1.60`) or a path to a Dockerfile. See TODO for more
-    /// information on build-info strings.
-    #[structopt(index = 1, required = true, value_name = "ENGINE-REF OR DOCKERFILE")]
-    location: String,
+    /// A BUILD-INFO string, e.g. `wasmtime` or `wasmtime?COMMIT=92350bf2` or
+    /// `wasmtime?COMMIT=92350bf2&RUSTC=1.60`). Valid engines are listed in
+    /// `sightglass/engines/<engine>` and modifiable variables are Dockerfile `ARG`s.
+    #[structopt(index = 1, required = true, value_name = "BUILD-INFO")]
+    buildinfo: BuildInfo,
 }
 
 impl BuildEngineCommand {
     pub fn execute(&self) -> Result<()> {
-        let engine_path = get_known_engine_path(&self.location)?;
+        let engine_path = get_engine_path_from_buildinfo(&self.buildinfo)?;
         if !engine_path.exists() || self.force_rebuild {
-            build_engine(&self.location, &engine_path)?;
+            build_engine(&self.buildinfo, &engine_path)?;
         }
         println!("{}", engine_path.display());
         Ok(())

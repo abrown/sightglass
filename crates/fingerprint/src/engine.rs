@@ -1,6 +1,6 @@
 use crate::util::{sha256, stringify};
 use serde::{Deserialize, Serialize};
-use sightglass_artifact::{get_known_dockerfile_path, BuildInfo, Dockerfile};
+use sightglass_artifact::{BuildInfo, Dockerfile};
 use std::{fs, path::Path};
 
 /// Describes a WebAssembly engine.
@@ -38,7 +38,8 @@ impl Engine {
                 .expect(".build-info must have a valid ENGINE value")
                 .to_owned();
 
-            let dockerfile = Dockerfile::from(get_known_dockerfile_path(&name).unwrap());
+            let dockerfile = Dockerfile::from_known_engine(&name)
+                .expect("to have a Dockerfile for known engine");
             let build_info_defaults = dockerfile
                 .default_buildinfo()
                 .expect("the Dockerfile could not be parsed");

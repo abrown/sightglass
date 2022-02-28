@@ -1,6 +1,7 @@
 use anyhow::Result;
 use std::fmt::Write;
 use std::fs;
+use std::str::FromStr;
 use std::{collections::BTreeMap, fmt, io, iter::FromIterator, path::Path};
 
 /// The default file name used for [BuildInfo] files.
@@ -185,13 +186,20 @@ impl BuildInfo {
     /// let b1 = BuildInfo::parse_uri("a=1&b=0").unwrap();
     /// let b2 = BuildInfo::parse_uri("b=2&c=3").unwrap();
     /// // `b2` overwrites `b1` as it is merged in
-    /// assert_eq!(b1.merge(b2).as_uri(), "a=1&b=2&c=3");
+    /// assert_eq!(b1.merge(&b2).as_uri(), "a=1&b=2&c=3");
     /// ```
-    pub fn merge(mut self, incoming: BuildInfo) -> BuildInfo {
-        for (var, val) in incoming.0 {
-            let _ = self.0.insert(var, val);
+    pub fn merge(mut self, incoming: &BuildInfo) -> BuildInfo {
+        for (var, val) in &incoming.0 {
+            let _ = self.0.insert(var.to_string(), val.to_string());
         }
         self
+    }
+}
+
+impl FromStr for BuildInfo {
+    type Err = anyhow::Error;
+    fn from_str(uri: &str) -> Result<Self, Self::Err> {
+        BuildInfo::parse_uri(uri)
     }
 }
 

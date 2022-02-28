@@ -8,7 +8,8 @@ use log;
 use std::{borrow::Cow, convert::TryFrom, env, fmt, fs, path::Path, path::PathBuf, str};
 
 // Retrieve a built engine library for running benchmarks; the returned value is a path to the built
-// engine's dylib. This function will attempt to build the library if it does not yet exist.
+// engine's dylib. This function will attempt to build the library if it does not yet exist. Engine
+// can be either (1) a path to an engine library or (2) a BUILD-INFO URI.
 pub fn get_built_engine(engine: &str) -> Result<PathBuf> {
     if Path::new(engine).exists() {
         log::debug!("Using already-built engine path: {}", engine);
@@ -17,12 +18,18 @@ pub fn get_built_engine(engine: &str) -> Result<PathBuf> {
 
     // Get the path to where the known engine dylib would be if it is built, or else propagate an
     // unknown engine error.
-    let engine_path = get_known_engine_path(engine)?;
+    let buildinfo = BuildInfo::parse_uri(engine)?;
+    let engine_path = get_engine_path_from_buildinfo(&buildinfo)?;
 
     // If no file exists at the engine path, then we have to build it.
     if !engine_path.exists() {
-        build_engine(engine, &engine_path)?;
+        build_engine(&buildinfo, &engine_path)?;
         assert!(engine_path.exists());
+    } else if is_build_stale(&engine_path)? {
+        log::warn!(
+            "The library built with this BUILD-INFO ({}) is stale",
+            buildinfo
+        );
     }
 
     log::debug!("Using known engine at path: {}", engine_path.display());
@@ -37,7 +44,7 @@ pub fn list_engines<'a>() -> Result<Vec<(EngineName<'a>, PathBuf, Option<BuildIn
         let entry = entry?;
         if entry.file_type()?.is_dir() {
             let engine_dir = entry.path();
-            match EngineName::try_from(engine_dir.as_path()) {
+            match EngineName::from_cache_directory(engine_dir.as_path()) {
                 Ok(name) => {
                     let path = Path::join(&engine_dir, get_engine_filename());
                     let buildinfo =
@@ -51,13 +58,44 @@ pub fn list_engines<'a>() -> Result<Vec<(EngineName<'a>, PathBuf, Option<BuildIn
     Ok(engines)
 }
 
+pub fn is_build_stale(engine_path: &Path) -> Result<bool> {
+    let mut buildinfo = BuildInfo::parse_file(&get_buildinfo_from_engine_path(engine_path)?)?;
+    let repository = buildinfo
+        .get("REPOSITORY")
+        .expect("BUILDINFO must have a REPOSITORY value");
+    let revision = buildinfo
+        .get("REVISION")
+        .expect("BUILDINFO must have a REVISION value");
+    let commit = git::resolve_to_commit(repository, revision)?;
+    if let Some(built_commit) = buildinfo.get("COMMIT") {
+        Ok(commit == built_commit)
+    } else {
+        Ok(false)
+    }
+}
+
+pub fn get_engine_path_from_buildinfo(buildinfo: &BuildInfo) -> Result<PathBuf> {
+    let engine_name = EngineName::from_buildinfo(buildinfo)?;
+    Ok(sightglass_data_dir()?
+        .join(engine_name.to_string())
+        .join(get_engine_filename()))
+}
+
+pub fn get_buildinfo_from_engine_path(engine_path: &Path) -> Result<PathBuf> {
+    Ok(engine_path
+        .parent()
+        .ok_or(anyhow!("engine should have a parent directory"))?
+        .join(buildinfo::DEFAULT_FILE_NAME))
+}
+
 /// Calculate the path to an engine library: e.g. `<user's app data
-/// dir>/sightglass/wasmtime@ab1234ef/libengine.so`.
-pub fn get_known_engine_path(slug: &str) -> Result<PathBuf> {
-    let mut p = super::sightglass_data_dir()?;
-    p.push(slug);
-    p.push(get_engine_filename());
-    Ok(p)
+/// dir>/sightglass/wasmtime?COMMIT=ab1234ef/libengine.so`.
+pub fn get_known_engine_path(uri: &str) -> Result<PathBuf> {
+    let buildinfo = BuildInfo::parse_uri(uri)?;
+    let engine_name = EngineName::from_buildinfo(&buildinfo)?;
+    Ok(sightglass_data_dir()?
+        .join(engine_name.to_string())
+        .join(get_engine_filename()))
 }
 
 /// Calculate the library name for a sightglass library on the target operating system: e.g.
@@ -70,17 +108,17 @@ pub fn get_engine_filename() -> String {
     )
 }
 
-/// Calculate the path to the Dockerfile for building a known engine.
-pub fn get_known_dockerfile_path(slug: &str) -> Result<PathBuf> {
-    let mut path = PathBuf::from("."); // TODO calculate the project directory
-    path.push("engines");
-    path.push(slug);
-    path.push("Dockerfile");
-    Ok(path)
-}
+// /// Calculate the path to the Dockerfile for building a known engine.
+// pub fn get_known_dockerfile_path(slug: &str) -> Result<PathBuf> {
+//     let mut path = PathBuf::from("."); // TODO calculate the project directory
+//     path.push("engines");
+//     path.push(slug);
+//     path.push("Dockerfile");
+//     Ok(path)
+// }
 
 /// Build an engine from either a Dockerfile or a known engine.
-pub fn build_engine(engine: &str, engine_path: &Path) -> Result<()> {
+pub fn build_engine(cli_buildinfo: &BuildInfo, engine_path: &Path) -> Result<()> {
     // If the known engine's directory is not yet created, create it.
     let engine_dir = engine_path.parent().unwrap();
     if !engine_dir.is_dir() {
@@ -88,34 +126,21 @@ pub fn build_engine(engine: &str, engine_path: &Path) -> Result<()> {
         log::debug!("Created sightglass directory: {}", engine_dir.display());
     }
 
-    let (dockerfile, args) = if Path::new(engine).exists() {
-        (Dockerfile::from(PathBuf::from(engine)), None)
-    } else {
-        let cli_buildinfo = BuildInfo::parse_uri(engine)?;
-        let engine_name = cli_buildinfo
-            .get("NAME")
-            .expect("BUILDINFO must have a name");
-        let dockerfile = Dockerfile::from_known_engine(engine_name)?;
-        let mut buildinfo = dockerfile.default_buildinfo()?.merge(cli_buildinfo);
-        let repository = buildinfo
-            .get("REPOSITORY")
-            .expect("BUILDINFO must have a REPOSITORY value");
-        let revision = buildinfo
-            .get("REVISION")
-            .expect("BUILDINFO must have a REVISION value");
-        let commit = git::resolve_to_commit(repository, revision)?;
-        buildinfo.set("COMMIT".to_string(), commit);
-        (dockerfile, Some(buildinfo))
-    };
+    // Find the Dockerfile to build with.
+    let engine_name = cli_buildinfo
+        .get("NAME")
+        .expect("BUILDINFO must have a name");
+    let dockerfile = Dockerfile::from_known_engine(engine_name)?;
 
+    // Build the image and extract both the library and the .build-info file.
     log::debug!("Using Dockerfile at path: {}", dockerfile);
     let container_engine_path = format!("/{}", get_engine_filename());
-    let build_info_path = &Path::join(&engine_dir, buildinfo::DEFAULT_FILE_NAME);
+    let buildinfo_path = &Path::join(&engine_dir, buildinfo::DEFAULT_FILE_NAME);
     let files = [
         (container_engine_path, engine_path),
-        ("/.build-info".to_string(), build_info_path),
+        ("/.build-info".to_string(), buildinfo_path),
     ];
-    dockerfile.extract(&files, args)?;
+    dockerfile.extract(&files, Some(cli_buildinfo))?;
     Ok(())
 }
 
@@ -194,19 +219,36 @@ impl<'a> EngineName<'a> {
     fn new<C: Into<Cow<'a, str>>>(name: C, slug: C) -> Self {
         Self(name.into(), slug.into())
     }
-}
 
-/// Extract the [EngineName] from the last component of a directory path, e.g.:
-/// ```
-/// # use sightglass_artifact::EngineName;
-/// # use std::path::PathBuf;
-/// # use std::convert::TryFrom;
-/// let en = EngineName::try_from(PathBuf::from("/home/user/cache/<engine>-<slug>").as_path()).unwrap();
-/// assert_eq!(en.to_string(), "<engine>-<slug>");
-/// ```
-impl<'a, 'b> TryFrom<&'b Path> for EngineName<'a> {
-    type Error = anyhow::Error;
-    fn try_from(path: &'b Path) -> Result<Self, Self::Error> {
+    /// Calculate an [EngineName] using the path of a Dockerfile--this identifies engines built
+    /// from a Dockerfile directly. E.g., `dockerfile-892390f`.
+    pub fn from_dockerfile<P: AsRef<Path>>(path: P) -> Self {
+        let hash = sha256::file(path); // TODO return Result<Self>
+        Self::new("dockerfile".to_string(), slug(&hash).to_string())
+    }
+
+    /// Calculate an [EngineName] from [BuildInfo]--this identifies a well-known engine by name and
+    /// commit, if present, and by a hash of the [BuildInfo] otherwise. E.g., `wasmtime-ab0324d`.
+    pub fn from_buildinfo<'b>(buildinfo: &'b BuildInfo) -> Result<Self> {
+        let name = buildinfo
+            .get("NAME")
+            .ok_or(anyhow!("BUILDINFO must contain a NAME variable"))?;
+        let hash = sha256::string(&buildinfo.as_uri());
+        Ok(Self::new(name.to_string(), slug(&hash).to_string()))
+    }
+
+    /// Extract the final component of a path to be used as an [EngineName]--this is useful for
+    /// parsing names from the file system. The name is validated for well-formedness. E.g.
+    /// `/home/user/cache/engine-ab32ddf` -> `engine-ab32ddf`.
+    ///
+    /// ```
+    /// # use sightglass_artifact::EngineName;
+    /// # use std::path::PathBuf;
+    /// # use std::convert::TryFrom;
+    /// let en = EngineName::from_cache_directory(PathBuf::from("/home/user/cache/<engine>-<slug>").as_path()).unwrap();
+    /// assert_eq!(en.to_string(), "<engine>-<slug>");
+    /// ```
+    pub fn from_cache_directory<'b>(path: &'b Path) -> Result<Self> {
         path.file_name()
             .ok_or(anyhow!("directory path must have a final component"))?
             .to_string_lossy()
@@ -215,20 +257,39 @@ impl<'a, 'b> TryFrom<&'b Path> for EngineName<'a> {
     }
 }
 
-impl TryFrom<BuildInfo> for EngineName<'_> {
-    type Error = anyhow::Error;
-    fn try_from(b: BuildInfo) -> Result<Self, Self::Error> {
-        let name = b
-            .get("NAME")
-            .ok_or(anyhow!("BUILDINFO must contain a NAME variable"))?;
-        let hash = if let Some(commit) = b.get("COMMIT") {
-            commit.to_owned()
-        } else {
-            sha256::string(&b.as_uri())
-        };
-        Ok(Self::new(name.to_string(), slug(&hash).to_string()))
-    }
-}
+// /// Extract the [EngineName] from the last component of a directory path, e.g.:
+// /// ```
+// /// # use sightglass_artifact::EngineName;
+// /// # use std::path::PathBuf;
+// /// # use std::convert::TryFrom;
+// /// let en = EngineName::try_from(PathBuf::from("/home/user/cache/<engine>-<slug>").as_path()).unwrap();
+// /// assert_eq!(en.to_string(), "<engine>-<slug>");
+// /// ```
+// impl<'a, 'b> TryFrom<&'b Path> for EngineName<'a> {
+//     type Error = anyhow::Error;
+//     fn try_from(path: &'b Path) -> Result<Self, Self::Error> {
+//         path.file_name()
+//             .ok_or(anyhow!("directory path must have a final component"))?
+//             .to_string_lossy()
+//             .to_string()
+//             .parse()
+//     }
+// }
+
+// impl TryFrom<BuildInfo> for EngineName<'_> {
+//     type Error = anyhow::Error;
+//     fn try_from(b: BuildInfo) -> Result<Self, Self::Error> {
+//         let name = b
+//             .get("NAME")
+//             .ok_or(anyhow!("BUILDINFO must contain a NAME variable"))?;
+//         let hash = if let Some(commit) = b.get("COMMIT") {
+//             commit.to_owned()
+//         } else {
+//             sha256::string(&b.as_uri())
+//         };
+//         Ok(Self::new(name.to_string(), slug(&hash).to_string()))
+//     }
+// }
 
 impl<'a> str::FromStr for EngineName<'a> {
     type Err = anyhow::Error;

@@ -11,8 +11,8 @@ use std::{fs, path::PathBuf};
 pub use buildinfo::BuildInfo;
 pub use docker::Dockerfile;
 pub use engine::{
-    build_engine, get_built_engine, get_known_dockerfile_path, get_known_engine_path, list_engines,
-    EngineName,
+    build_engine, get_engine_path_from_buildinfo, get_built_engine, get_engine_filename,
+    get_known_engine_path, list_engines, EngineName,
 };
 pub use git::{resolve_to_commit, GitLocation};
 pub use wasm::WasmBenchmark;
