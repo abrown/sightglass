@@ -6,6 +6,7 @@ mod effect_size;
 mod fingerprint;
 mod list_engines;
 mod summarize;
+mod upload;
 mod validate;
 
 use anyhow::Result;
@@ -19,6 +20,7 @@ use list_engines::ListEnginesCommand;
 use log::trace;
 use structopt::{clap::AppSettings, StructOpt};
 use summarize::SummarizeCommand;
+use upload::UploadCommand;
 use validate::ValidateCommand;
 
 /// Main entry point for CLI.
@@ -47,6 +49,7 @@ enum SightglassCommand {
     Fingerprint(FingerprintCommand),
     ListEngines(ListEnginesCommand),
     Summarize(SummarizeCommand),
+    Upload(UploadCommand),
     Validate(ValidateCommand),
 }
 
@@ -62,6 +65,7 @@ impl SightglassCommand {
             SightglassCommand::Fingerprint(fingerprint) => fingerprint.execute(),
             SightglassCommand::ListEngines(list_engines) => list_engines.execute(),
             SightglassCommand::Summarize(summarize) => summarize.execute(),
+            SightglassCommand::Upload(upload) => upload.execute(),
             SightglassCommand::Validate(validate) => validate.execute(),
         }
     }

@@ -1,9 +1,10 @@
-use std::{collections::HashMap, slice::SliceIndex};
-
 use anyhow::Result;
 use reqwest::blocking::Client;
 use serde::Serialize;
 use serde_json::Value;
+use std::collections::HashMap;
+
+/// A simple HTTP wrapper for communicating with an ElasticSearch database.
 pub struct Database {
     url: String,
     dryrun: bool,
@@ -38,6 +39,7 @@ impl Database {
     where
         T: Serialize,
     {
+        log::debug!("Creating record in '{}' with ID {:?}", index, id);
         let url = if let Some(id) = id {
             format!("{}/{}/_doc/{}", self.url, index, id)
         } else {
@@ -54,7 +56,7 @@ impl Database {
             })
         } else {
             let client = Client::new();
-            let response = client.post(url).body(body).send()?;
+            let response = client.put(url).body(body).send()?;
             let response: HashMap<String, Value> = serde_json::from_slice(&response.bytes()?)?;
             let id = response.get("_id").unwrap().as_str().unwrap().to_string();
             Ok(id)

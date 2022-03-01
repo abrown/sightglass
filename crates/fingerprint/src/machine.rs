@@ -1,3 +1,4 @@
+use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use sysinfo::{ProcessorExt, System, SystemExt};
 
@@ -25,7 +26,7 @@ pub struct Machine {
 
 impl Machine {
     /// Detect system information for the currently machine running Sightglass.
-    pub fn fingerprint() -> Self {
+    pub fn fingerprint() -> Result<Self> {
         // Gather the host name.
         let name = hostname::get()
             .expect("must be able to detect the system hostname")
@@ -36,10 +37,10 @@ impl Machine {
         let mut sys = System::new();
         let os = sys
             .long_os_version()
-            .expect("must be able to detect the system OS");
+            .ok_or(anyhow!("must be able to detect the system OS"))?;
         let kernel = sys
             .kernel_version()
-            .expect("must be able to detect the system kernel version");
+            .ok_or(anyhow!("must be able to detect the system kernel version"))?;
 
         // Gather some CPU information.
         let arch = std::env::consts::ARCH.to_string();
@@ -53,13 +54,13 @@ impl Machine {
         let memory_total_kb = sys.total_memory();
         let memory = bytesize::to_string(bytesize::ByteSize::kib(memory_total_kb).0, true);
 
-        Self {
+        Ok(Self {
             name,
             arch,
             os,
             kernel,
             cpu,
             memory,
-        }
+        })
     }
 }

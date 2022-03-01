@@ -17,7 +17,13 @@ impl ListEnginesCommand {
         for (name, path) in list_engines()? {
             println!("{}", name);
             if !self.oneline {
-                let fingerprint = Engine::fingerprint(&path);
+                let fingerprint = match Engine::fingerprint(&path) {
+                    Ok(finterprint) => finterprint,
+                    Err(err) => {
+                        println!("  Unable to fingerprint: {}", err);
+                        continue;
+                    }
+                };
                 if name.to_string() != fingerprint.name {
                     log::warn!(
                         "The cache directory name and the fingerprint name do not match: {} != {}",

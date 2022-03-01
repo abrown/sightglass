@@ -1,6 +1,7 @@
 use crate::util::stringify;
+use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
-use sightglass_build::{hash, BuildInfo, Dockerfile};
+use sightglass_build::{hash, path::get_buildinfo_path_from_engine_path, BuildInfo, Dockerfile};
 use std::{fs, path::Path};
 
 /// Describes a WebAssembly engine.
@@ -20,34 +21,22 @@ pub struct Engine {
 }
 
 impl Engine {
-    /// Extract the build information
-    pub fn fingerprint<P: AsRef<Path>>(library_path: P) -> Self {
-        let library_path = library_path
-            .as_ref()
-            .canonicalize()
-            .expect("must have a canonical path to the engine");
-        let buildinfo_path = Path::join(
-            &library_path
-                .parent()
-                .expect("the engine to have a parent directory"),
-            ".build-info",
-        );
+    /// Extract the build information of a Sightglass engine.
+    pub fn fingerprint<P: AsRef<Path>>(library_path: P) -> Result<Self> {
+        let library_path = library_path.as_ref().canonicalize()?;
+        let buildinfo_path = get_buildinfo_path_from_engine_path(&library_path)?;
 
         if let Ok(buildinfo_contents) = fs::read_to_string(buildinfo_path) {
             // Construct a rebuild string from the information stored in the .build-info file. We
             // only use the configuration that differs from the defaults in the Dockerfile for
             // brevity and human-readability.
-            let buildinfo = BuildInfo::parse_file_string(&buildinfo_contents)
-                .expect("the .build-info file could not be parsed");
+            let buildinfo = BuildInfo::parse_file_string(&buildinfo_contents)?;
             let name = buildinfo
                 .name()
-                .expect(".build-info must have a valid NAME value")
+                .ok_or(anyhow!(".build-info must have a valid NAME value"))?
                 .to_owned();
-            let dockerfile = Dockerfile::from_known_engine(&name)
-                .expect("to have a Dockerfile for known engine");
-            let buildinfo_defaults = dockerfile
-                .default_buildinfo()
-                .expect("the Dockerfile could not be parsed");
+            let dockerfile = Dockerfile::from_known_engine(&name)?;
+            let buildinfo_defaults = dockerfile.default_buildinfo()?;
             let mut diffed_buildinfo = buildinfo.diff(buildinfo_defaults);
 
             // Also, we want to override the REVISION with the actually-built commit. REVISION may
@@ -60,23 +49,23 @@ impl Engine {
                     .expect(".build-info should contain a _COMMIT value"),
             );
 
-            Self {
+            Ok(Self {
                 name,
                 path: stringify(library_path),
                 rebuild: Some(format!("sightglass-cli build-engine {}", diffed_buildinfo)),
                 buildinfo: Some(buildinfo_contents),
-            }
+            })
         } else {
             log::warn!(
                 "No .build-info for the engine at: {}",
                 &library_path.display()
             );
-            Self {
+            Ok(Self {
                 name: format!("custom-{}", hash::slug(&hash::file(&library_path))),
                 path: stringify(library_path),
                 rebuild: None,
                 buildinfo: None,
-            }
+            })
         }
     }
 }

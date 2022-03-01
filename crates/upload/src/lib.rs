@@ -11,8 +11,8 @@ use std::collections::{HashMap, HashSet};
 
 /// Upload `measurements` to the `server`. This will replace several fields of the raw [Measurement]
 /// with fingerprinted data from the current server; this adds useful metadata to the results.
-pub fn upload(server: String, dryrun: bool, measurements: &Vec<Measurement>) -> Result<()> {
-    let database = Database::new(server, dryrun);
+pub fn upload(server: &str, dryrun: bool, measurements: &Vec<Measurement>) -> Result<()> {
+    let database = Database::new(server.to_string(), dryrun);
 
     // De-duplicate all of the engines and benchmarks used in this result set.
     let mut found_engines = HashSet::new();
@@ -25,21 +25,27 @@ pub fn upload(server: String, dryrun: bool, measurements: &Vec<Measurement>) -> 
     // Insert each fingerprinted version of an engine.
     let mut engines = HashMap::new();
     for engine_path in found_engines.into_iter() {
-        let engine = Engine::fingerprint(engine_path.as_ref());
+        let engine = Engine::fingerprint(engine_path.as_ref())?;
         let engine_id = database.create("engines", &engine, Some(&engine.name))?;
-        engines.insert(engine_id, engine_path);
+        log::debug!("Mapping engine: {} -> {}", &engine_path, &engine_id);
+        engines.insert(engine_path, engine_id);
     }
 
     // Insert each fingerprinted version of a benchmark;
     let mut benchmarks = HashMap::new();
     for benchmark_path in found_benchmarks.into_iter() {
-        let benchmark = Benchmark::fingerprint(benchmark_path.as_ref());
+        let benchmark = Benchmark::fingerprint(benchmark_path.as_ref())?;
         let benchmark_id = database.create("benchmarks", &benchmark, Some(&benchmark.name))?;
-        benchmarks.insert(benchmark_id, benchmark_path);
+        log::debug!(
+            "Mapping benchmark: {} -> {}",
+            &benchmark_path,
+            &benchmark_id
+        );
+        benchmarks.insert(benchmark_path, benchmark_id);
     }
 
     // Fingerprint the current machine.
-    let machine = Machine::fingerprint();
+    let machine = Machine::fingerprint()?;
     let machine = database.create("machines", &machine, Some(&machine.name))?;
 
     // Upload the measurements.

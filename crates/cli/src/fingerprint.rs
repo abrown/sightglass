@@ -27,15 +27,16 @@ impl FingerprintCommand {
     pub fn execute(&self) -> Result<()> {
         let out = io::stdout();
         match self.kind {
-            Kind::Machine => self.output_format.write_one(Machine::fingerprint(), out),
+            Kind::Machine => self.output_format.write_one(Machine::fingerprint()?, out),
             Kind::Engine => {
                 let file = self.file.as_ref().expect("an engine file must be passed");
-                self.output_format.write_one(Engine::fingerprint(file), out)
+                self.output_format
+                    .write_one(Engine::fingerprint(file)?, out)
             }
             Kind::Benchmark => {
                 let file = self.file.as_ref().expect("a benchmark file must be passed");
                 self.output_format
-                    .write_one(Benchmark::fingerprint(file), out)
+                    .write_one(Benchmark::fingerprint(file)?, out)
             }
         }
     }

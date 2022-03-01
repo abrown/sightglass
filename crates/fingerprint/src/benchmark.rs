@@ -1,4 +1,5 @@
 use crate::util::stringify;
+use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use sightglass_build::hash;
 use std::path::PathBuf;
@@ -29,11 +30,8 @@ pub struct Benchmark {
 }
 
 impl Benchmark {
-    pub fn fingerprint<P: AsRef<Path>>(path: P) -> Self {
-        let path = path
-            .as_ref()
-            .canonicalize()
-            .expect("must have a canonical path to the benchmark");
+    pub fn fingerprint<P: AsRef<Path>>(path: P) -> Result<Self> {
+        let path = path.as_ref().canonicalize()?;
 
         // Calculate the hash for the benchmark file.
         let size = File::open(&path)
@@ -42,32 +40,32 @@ impl Benchmark {
             .expect("should be able to collect the benchmark file size")
             .len();
 
-        Self {
-            name: simplify_benchmark_name(&path),
+        Ok(Self {
+            name: simplify_benchmark_name(&path)?,
             path: simplify_benchmark_path(&path),
             hash: hash::file(&path),
             size,
-        }
+        })
     }
 }
 
 /// Simplify the benchmark name if possible; e.g.:
 /// - `.../<name>/benchmark.wasm` -> <name>
 /// - `.../<name>.wasm -> <name>
-fn simplify_benchmark_name<P: AsRef<Path>>(path: P) -> String {
+fn simplify_benchmark_name<P: AsRef<Path>>(path: P) -> Result<String> {
     let path = path.as_ref();
     let stem = path
         .file_stem()
-        .expect("the benchmark must have a file name");
+        .ok_or(anyhow!("the benchmark must have a file name"))?;
     let name = if stem == "benchmark" {
         path.parent()
-            .expect("the benchmark must have a parent directory")
+            .ok_or(anyhow!("the benchmark must have a parent directory"))?
             .file_name()
-            .expect("the parent directory to have a name")
+            .ok_or(anyhow!("the parent directory to have a name"))?
     } else {
         stem
     };
-    stringify(name)
+    Ok(stringify(name))
 }
 
 /// Simplify the benchmark path if possible; e.g.:
@@ -76,7 +74,6 @@ fn simplify_benchmark_name<P: AsRef<Path>>(path: P) -> String {
 /// `benchmarks/` or `benchmarks-next/` and cuts the path there.
 fn simplify_benchmark_path<P: AsRef<Path>>(path: P) -> String {
     let path = path.as_ref();
-
     if let Some(i) = path
         .iter()
         .position(|c| c == "benchmarks" || c == "benchmarks-next")
@@ -95,10 +92,10 @@ mod tests {
     #[test]
     fn shortened_benchmark_names() {
         assert_eq!(
-            simplify_benchmark_name("benchmarks-next/noop/benchmark.wasm"),
+            simplify_benchmark_name("benchmarks-next/noop/benchmark.wasm").unwrap(),
             "noop"
         );
-        assert_eq!(simplify_benchmark_name("a/b/c.wasm"), "c");
+        assert_eq!(simplify_benchmark_name("a/b/c.wasm").unwrap(), "c");
     }
 
     #[test]

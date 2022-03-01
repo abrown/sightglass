@@ -1959,6 +1959,7 @@ dependencies = [
  "sightglass-data",
  "sightglass-fingerprint",
  "sightglass-recorder",
+ "sightglass-upload",
  "structopt",
  "tempfile",
  "thiserror",
@@ -2013,6 +2014,7 @@ name = "sightglass-upload"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "log 0.4.11",
  "reqwest",
  "serde",
  "serde_json",

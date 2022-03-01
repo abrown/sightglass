@@ -1,6 +1,6 @@
 use anyhow::Result;
-use sightglass_analysis::summarize;
 use sightglass_data::{Format, Measurement};
+use sightglass_upload::upload;
 use std::{
     fs::File,
     io::{self, BufReader, Read},
@@ -17,7 +17,7 @@ pub struct UploadCommand {
     input_format: Format,
 
     /// Path to the file that will be read from, or none to indicate stdin (default).
-    #[structopt(short = "f")]
+    #[structopt(short = "f", long = "input-file")]
     input_file: Option<String>,
 
     /// Setting this flag will prevent any uploading to the server.
@@ -30,7 +30,7 @@ pub struct UploadCommand {
     server: String,
 }
 
-impl SummarizeCommand {
+impl UploadCommand {
     pub fn execute(&self) -> Result<()> {
         let file: Box<dyn Read> = if let Some(file) = self.input_file.as_ref() {
             Box::new(BufReader::new(File::open(file)?))
@@ -38,6 +38,6 @@ impl SummarizeCommand {
             Box::new(io::stdin())
         };
         let measurements: Vec<Measurement> = self.input_format.read(file)?;
-        upload(self.server, self.dryrun, &measurements)?;
+        upload(&self.server, self.dryrun, &measurements)
     }
 }
