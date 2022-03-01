@@ -23,23 +23,40 @@ pub fn get_cache_dir() -> Result<PathBuf> {
     Ok(p)
 }
 
-/// Calculate the path to an engine library: e.g. `<user's app data
-/// dir>/sightglass/wasmtime?COMMIT=ab1234ef/libengine.so`.
-pub fn get_known_engine_path(uri: &str) -> Result<PathBuf> {
-    let buildinfo = BuildInfo::parse_uri(uri)?;
-    let engine_name = EngineName::from_buildinfo(&buildinfo)?;
+/// Calculate the path to an engine library using the name printed by `list-engines`. E.g.:
+///
+/// ```
+/// # use sightglass_build::path::get_engine_path_from_engine_name;
+/// # use sightglass_build::EngineName;
+/// let name: EngineName = "wasmtime-1234567".parse().unwrap();
+/// let path = get_engine_path_from_engine_name(&name).unwrap();
+/// assert!(path.ends_with("wasmtime-1234567/libengine.so"));
+/// ```
+pub fn get_engine_path_from_engine_name(engine_name: &EngineName) -> Result<PathBuf> {
     Ok(get_cache_dir()?
         .join(engine_name.to_string())
         .join(get_engine_filename()))
 }
 
-/// Calculate the path to an engine library: e.g. `<user's app data
-/// dir>/sightglass/wasmtime?COMMIT=ab1234ef/libengine.so`.
+/// Calculate the path to an engine library using [BuildInfo]: e.g.:
+///
+/// ```
+/// # use sightglass_build::path::get_engine_path_from_buildinfo;
+/// # use sightglass_build::BuildInfo;
+/// let buildinfo = BuildInfo::parse_uri("wasmtime?REVISION=1234567").unwrap();
+/// let path = get_engine_path_from_buildinfo(&buildinfo).unwrap();
+/// assert!(path.ends_with("wasmtime-9c91cc9c/libengine.so"));
+/// ```
 pub fn get_engine_path_from_buildinfo(buildinfo: &BuildInfo) -> Result<PathBuf> {
     let engine_name = EngineName::from_buildinfo(buildinfo)?;
-    Ok(get_cache_dir()?
-        .join(engine_name.to_string())
-        .join(get_engine_filename()))
+    get_engine_path_from_engine_name(&engine_name)
+}
+
+/// Calculate the path to an engine library using a build-info string: e.g., `wasmtime` -> `<user's
+/// app data dir>/sightglass/wasmtime-ab1234ef/libengine.so`.
+pub fn get_known_engine_path(uri: &str) -> Result<PathBuf> {
+    let buildinfo = BuildInfo::parse_uri(uri)?;
+    get_engine_path_from_buildinfo(&buildinfo)
 }
 
 /// Calculate the path to a built engine's BUILD-INFO file. E.g.:

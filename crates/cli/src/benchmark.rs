@@ -21,13 +21,15 @@ use structopt::StructOpt;
 pub struct BenchmarkCommand {
     /// The benchmark engine(s) with which to run the benchmark.
     ///
-    /// This can be either the path to a shared library implementing the benchmarking engine
-    /// specification or an build-info string (see `build-engine`): `[engine
-    /// name]?[variable]=[value]...`, e.g. `wasmtime?REVISION=v0.33.1`.
+    /// This can be either:
+    ///  1. the path to a shared library implementing the benchmarking engine specification,
+    ///  2. a build-info string (see `build-engine`): `[engine name]?[variable]=[value]...`, e.g.
+    ///     `wasmtime?REVISION=v0.33.1`.
+    ///  3. an engine alias (see the output of `list-engines`)
     #[structopt(
         long("engine"),
         short("e"),
-        value_name = "ENGINE-REF OR PATH",
+        value_name = "PATH or BUILD-INFO or ENGINE-ALIAS",
         empty_values = false,
         default_value = "wasmtime"
     )]

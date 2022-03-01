@@ -3,7 +3,7 @@ use crate::{
     buildinfo, git,
     path::{
         get_buildinfo_path_from_engine_path, get_cache_dir, get_engine_filename,
-        get_engine_path_from_buildinfo,
+        get_engine_path_from_buildinfo, get_engine_path_from_engine_name,
     },
     BuildInfo, Dockerfile, EngineName,
 };
@@ -11,17 +11,33 @@ use anyhow::Result;
 use log;
 use std::{fs, path::Path, path::PathBuf, str};
 
-// Retrieve a built engine library for running benchmarks; the returned value is a path to the built
-// engine's dylib. This function will attempt to build the library if it does not yet exist. Engine
-// can be either (1) a path to an engine library or (2) a BUILD-INFO URI.
+/// Retrieve a built engine library for running benchmarks; the returned value is a path to the built
+/// engine's dylib. This function will attempt to build the library if it does not yet exist.
+/// `engine` can be either:
+///  1. a path to an already-built engine library
+///  2. an engine alias (see [EngineName])
+///  3. a BUILD-INFO URI-like string (see [BuildInfo])
 pub fn get_built_engine(engine: &str) -> Result<PathBuf> {
+    // 1. a path to an already-built engine library
     if Path::new(engine).exists() {
         log::debug!("Using already-built engine path: {}", engine);
         return Ok(PathBuf::from(engine));
     }
 
-    // Get the path to where the known engine dylib would be if it is built, or else propagate an
-    // unknown engine error.
+    // 2. an engine alias
+    let engine_name: Result<EngineName, _> = engine.parse();
+    if let Ok(engine_name) = engine_name {
+        let path = get_engine_path_from_engine_name(&engine_name)?;
+        log::debug!(
+            "Using already-built engine path from alias {}: {}",
+            engine_name,
+            path.display()
+        );
+        return Ok(path);
+    }
+
+    // 3. a BUILD-INFO URI-like string. Get the path to where the known engine dylib would be if it
+    // is built, or else propagate an unknown engine error.
     let buildinfo = BuildInfo::parse_uri(engine)?;
     let engine_path = get_engine_path_from_buildinfo(&buildinfo)?;
 
