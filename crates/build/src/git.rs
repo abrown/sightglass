@@ -8,7 +8,6 @@ pub fn resolve_to_commit(repository: &str, revision: &str) -> Result<String> {
         .output()?;
     if output.status.success() {
         let out = std::str::from_utf8(&output.stdout)?;
-        println!("{}", out);
         let (commit, _) = out
             .split_once("\t")
             .expect("a string like: <hash> \\t refs/...");
