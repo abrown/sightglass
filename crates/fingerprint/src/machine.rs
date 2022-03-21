@@ -8,7 +8,7 @@ use sysinfo::{ProcessorExt, System, SystemExt};
 /// # use sightglass_fingerprint::Machine;
 /// println!("Current machine fingerprint: {:?}", Machine::fingerprint());
 /// ```
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct Machine {
     /// The host name of the machine.
     pub name: String,

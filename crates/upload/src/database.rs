@@ -1,6 +1,6 @@
-use anyhow::Result;
+use anyhow::{anyhow, bail, Result};
 use reqwest::blocking::Client;
-use serde::Serialize;
+use serde::{de::DeserializeOwned, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 
@@ -32,6 +32,60 @@ impl Database {
         }
     }
 
+    /// Retrieve an object from the database, if it exists.
+    pub fn get<'a, T>(&self, index: &str, id: &str) -> Result<T>
+    where
+        T: DeserializeOwned,
+    {
+        let url = format!("{}/{}/_doc/{}", self.url, index, id);
+        if self.dryrun {
+            todo!()
+        } else {
+            let client = Client::new();
+            let response = client.get(url).send()?;
+            let bytes = response.bytes()?;
+            Ok(serde_json::from_slice(bytes.as_ref())?)
+        }
+    }
+
+    /// Create an object in the database, reusing an existing object if possible. This function
+    /// handles several cases:
+    ///  1. if the ID is not used in the database, create the object
+    ///  2. if the ID is used and the existing object matches `object`, simply return the ID without
+    ///     creating a new database entry
+    ///  3. if the ID is used and the existing object does not match `object`, append a `!` to the
+    ///     ID and retry (up to 5 times).
+    pub fn create_if_not_exists<'a, T>(&self, index: &str, object: &T, id: &str) -> Result<String>
+    where
+        T: DeserializeOwned + Serialize + PartialEq,
+    {
+        if self.dryrun {
+            return Ok(id.to_string());
+        }
+
+        let mut id = id.to_string();
+        for _ in 0..NUM_RETRIES {
+            match self.get(index, &id) {
+                Ok(stored_object) => {
+                    if object == &stored_object {
+                        // Case #2: the same object already exists in the database; simply return
+                        // the ID.
+                        return Ok(id);
+                    } else {
+                        // Case #3: a different object exists with the same ID; change the ID and
+                        // retry.
+                        id.push('!');
+                    }
+                }
+                Err(_) => {
+                    // Case #1: no object exists with the ID; create it.
+                    return self.create(index, object, Some(&id));
+                }
+            }
+        }
+        Err(anyhow!("failed to find a usable ID"))
+    }
+
     /// Use the ElasticSearch [Index
     /// API](https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-index_.html) to
     /// add a document to `index`, optionally with the given `id`.
@@ -56,10 +110,24 @@ impl Database {
             })
         } else {
             let client = Client::new();
-            let response = client.put(url).body(body).send()?;
-            let response: HashMap<String, Value> = serde_json::from_slice(&response.bytes()?)?;
-            let id = response.get("_id").unwrap().as_str().unwrap().to_string();
-            Ok(id)
+            let response = client
+                .post(url)
+                .header("Content-Type", "application/json")
+                .body(body)
+                .send()?;
+
+            let success = response.status().is_success();
+            let content: HashMap<String, Value> = serde_json::from_slice(&response.bytes()?)?;
+            log::debug!("ElasticSearch response: {:?}", content);
+
+            if success {
+                let id = content.get("_id").unwrap().as_str().unwrap().to_string();
+                Ok(id)
+            } else {
+                bail!("Failed to create record: {:?}", content)
+            }
         }
     }
 }
+
+const NUM_RETRIES: i32 = 5;
