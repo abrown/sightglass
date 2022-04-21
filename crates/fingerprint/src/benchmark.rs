@@ -15,7 +15,9 @@ use std::{fs::File, path::Path};
 /// ```
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct Benchmark {
-    /// The benchmark name; this is calculated from either the benchmark name (if it does not start
+    /// A unique identifier for the benchmark: `<name>-<hash slug>`.
+    pub id: String,
+    /// The benchmark name; this is calculated from either the Wasm file name (if it does not start
     /// with "benchmark") or from the parent directory. This accommodates both the current benchmark
     /// structure where each directory contains a "benchmark.wasm" file as well as non-Sightglass
     /// benchmarks, e.g., "spidermonkey.wasm".
@@ -32,6 +34,8 @@ pub struct Benchmark {
 impl Benchmark {
     pub fn fingerprint<P: AsRef<Path>>(path: P) -> Result<Self> {
         let path = path.as_ref().canonicalize()?;
+        let name = simplify_benchmark_name(&path)?;
+        let file_hash = hash::file(&path);
 
         // Calculate the hash for the benchmark file.
         let size = File::open(&path)
@@ -41,9 +45,10 @@ impl Benchmark {
             .len();
 
         Ok(Self {
-            name: simplify_benchmark_name(&path)?,
+            id: format!("{}-{}", name, hash::slug(&file_hash)),
+            name,
             path: simplify_benchmark_path(&path),
-            hash: hash::file(&path),
+            hash: file_hash,
             size,
         })
     }

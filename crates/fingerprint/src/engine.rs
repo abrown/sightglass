@@ -11,10 +11,12 @@ const DEFAULT_NAME: &str = "custom";
 /// Describes a WebAssembly engine.
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct Engine {
-    /// The canonical name for the engine; e.g.:
-    /// - `wasmtime-<build info hash>` for an engine with a NAME in the build info
-    /// - `custom-<library hash>` for a pre-built engine at a given path
-    pub name: String,
+    /// A unique identifier for the engine; one of:
+    /// - `<engine name>-<build info hash>` for an engine with a NAME in the build info
+    /// - `custom-<library hash>` for a pre-built engine at a given path (no build info)
+    pub id: String,
+    /// The name of the engine, if available in the build info.
+    pub name: Option<String>,
     /// The path to the engine.
     pub path: String,
     /// Describes the known configuration when building the engine using Sightglass.
@@ -29,14 +31,14 @@ impl Engine {
         let path = to_string_lossy(&library_path);
 
         if let Ok(buildinfo_contents) = fs::read_to_string(buildinfo_path) {
-            let buildinfo_name = extract_value_from_buildinfo(&buildinfo_contents, "NAME")
-                .unwrap_or(DEFAULT_NAME.into());
-            let name = format!(
+            let name = extract_value_from_buildinfo(&buildinfo_contents, "NAME");
+            let id = format!(
                 "{}-{}",
-                buildinfo_name,
+                name.as_ref().unwrap_or(&DEFAULT_NAME.to_string()),
                 hash::slug(&hash::string(&buildinfo_contents))
             );
             Ok(Self {
+                id,
                 name,
                 path,
                 buildinfo: Some(buildinfo_contents),
@@ -46,12 +48,14 @@ impl Engine {
                 "No .build-info for the engine at: {}",
                 &library_path.display()
             );
+            let id = format!(
+                "{}-{}",
+                DEFAULT_NAME,
+                hash::slug(&hash::file(&library_path))
+            );
             Ok(Self {
-                name: format!(
-                    "{}-{}",
-                    DEFAULT_NAME,
-                    hash::slug(&hash::file(&library_path))
-                ),
+                id,
+                name: None,
                 path,
                 buildinfo: None,
             })
