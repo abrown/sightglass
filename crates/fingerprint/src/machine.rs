@@ -1,8 +1,8 @@
+use crate::hash;
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
+use std::env;
 use sysinfo::{ProcessorExt, System, SystemExt};
-
-use crate::hash;
 
 /// Describes a fingerprinted system.
 ///
@@ -59,11 +59,16 @@ impl Machine {
         let memory = bytesize::to_string(bytesize::ByteSize::kib(memory_total_kb).0, true);
 
         // Hash all properties into a unique identifier.
-        let mix = format!(
+        let hash = hash::string(&format!(
             "{}\n{}\n{}\n{}\n{}\n{}",
             name, arch, os, kernel, cpu, memory
+        ));
+        let id = format!(
+            "{}-{}-{}",
+            env::consts::ARCH,
+            env::consts::OS,
+            hash::slug(&hash)
         );
-        let id = hash::slug(&hash::string(&mix)).to_string();
 
         Ok(Self {
             id,
