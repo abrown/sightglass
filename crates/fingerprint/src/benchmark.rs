@@ -1,6 +1,6 @@
 use crate::hash;
 use crate::util::to_string_lossy;
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Result, Context};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::{fs::File, path::Path};
@@ -33,7 +33,10 @@ pub struct Benchmark {
 
 impl Benchmark {
     pub fn fingerprint<P: AsRef<Path>>(path: P) -> Result<Self> {
-        let path = path.as_ref().canonicalize()?;
+        let path = path
+            .as_ref()
+            .canonicalize()
+            .context("unable to get absolute path of benchmark")?;
         let name = simplify_benchmark_name(&path)?;
         let file_hash = hash::file(&path);
 

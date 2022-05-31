@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use sightglass_data::{Format, Measurement};
 use sightglass_upload::upload;
 use std::{
@@ -33,7 +33,9 @@ pub struct UploadCommand {
 impl UploadCommand {
     pub fn execute(&self) -> Result<()> {
         let file: Box<dyn Read> = if let Some(file) = self.input_file.as_ref() {
-            Box::new(BufReader::new(File::open(file)?))
+            Box::new(BufReader::new(
+                File::open(file).context("unable to open --input-file")?,
+            ))
         } else {
             Box::new(io::stdin())
         };

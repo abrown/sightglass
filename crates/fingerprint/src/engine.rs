@@ -1,6 +1,6 @@
 use crate::hash;
 use crate::util::to_string_lossy;
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -26,7 +26,10 @@ pub struct Engine {
 impl Engine {
     /// Extract the build information of a Sightglass engine.
     pub fn fingerprint<P: AsRef<Path>>(library_path: P) -> Result<Self> {
-        let library_path = library_path.as_ref().canonicalize()?;
+        let library_path = library_path
+            .as_ref()
+            .canonicalize()
+            .context("unable to get absolute path of engine")?;
         let buildinfo_path = get_buildinfo_path_from_engine_path(&library_path)?;
         let path = to_string_lossy(&library_path);
 
