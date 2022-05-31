@@ -40,7 +40,7 @@ impl Database {
     {
         let url = format!("{}/{}/_doc/{}", self.url, index, id);
         if self.dry_run {
-            todo!()
+            bail!("could not retrieve object with ID: {}", id);
         } else {
             let client = Client::new();
             let response = client.get(url).send()?;
@@ -60,10 +60,6 @@ impl Database {
     where
         T: DeserializeOwned + Serialize + PartialEq,
     {
-        if self.dry_run {
-            return Ok(id.to_string());
-        }
-
         let mut id = id.to_string();
         for _ in 0..NUM_RETRIES {
             match self.get(index, &id) {
@@ -102,6 +98,7 @@ impl Database {
         };
 
         let body = serde_json::to_string(object)?;
+        log::trace!("Record body: {}", &body);
 
         if self.dry_run {
             Ok(if let Some(id) = id {
