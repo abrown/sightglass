@@ -4,6 +4,8 @@
 //! rustc build.rs
 //! [REPOSITORY=<repo url>] [REVISION=<hash|branch|tag>] ./build [<destination dir>]
 //! ```
+//!
+//! Note that a `hash` must be the full commit hash.
 
 #![deny(missing_docs)]
 #![deny(clippy::all)]
