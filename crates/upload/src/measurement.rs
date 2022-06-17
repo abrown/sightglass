@@ -54,7 +54,7 @@ impl<'a> UploadMeasurement<'a> {
             engine: Cow::Borrowed(engine),
             benchmark: Cow::Borrowed(benchmark),
             process: measurement.process,
-            iteration: measurement.process,
+            iteration: measurement.iteration,
             phase: measurement.phase,
             event: Cow::Borrowed(measurement.event.as_ref()),
             count: measurement.count,
