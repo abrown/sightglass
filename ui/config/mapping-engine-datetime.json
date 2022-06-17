@@ -1,0 +1,8 @@
+{
+    "properties": {
+        "datetime": {
+            "type": "date",
+            "format": "YYYY-MM-DD'T'HH:mm:ssZ"
+        }
+    }
+}

@@ -21,14 +21,38 @@ You may need to increase the `mmapfs` limits for ElasticSearch to initialize wit
 sysctl -w vm.max_map_count=262144
 ```
 
+### Configure
+
+After the Docker containers are running but before ingesting any data, run:
+
+```
+config/configure.sh
+```
+
+This script that will configure the Kibana and ElasticSearch instances with helpful dashboards,
+field mappings, etc. before ingesting the data. This step is not mandatory, but without it, the user
+is responsible to set all of this up. Note that any changes to the Kibana visualizations can be
+saved to the `config` directory by running `config/export-dashboards.sh`.
+
+### Ingest data
+
+See the `sightglass-cli upload` command for details on ingesting measurement and fingerprint data.
+
 ### Stop
 
 ```
 docker-compose down
 ```
 
-### TODO
+### Clean up
 
- - Set up index patterns for `measurements`, `engines`, `machines`, `benchmarks`
- - Set up some initial charts
- - Set up initial mapping to link IDs to their stored record
+To remove all data stored in the system:
+
+1. Stop the containers (see above).
+2. Remove the containers (e.g., `docker rm -f $(docker ps -a -q)`, though this will remove all
+   active containers).
+3. Remove the volumes related to this project:
+
+   ```
+   docker volume rm $(docker volume ls -q | grep ui_data)
+   ```
