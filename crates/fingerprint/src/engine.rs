@@ -17,6 +17,8 @@ pub struct Engine {
     pub id: String,
     /// The name of the engine, if available in the build info.
     pub name: Option<String>,
+    /// When the engine was at this state (the commit date), if available in the build info.
+    pub datetime: Option<String>,
     /// The path to the engine.
     pub path: String,
     /// Describes the known configuration when building the engine using Sightglass.
@@ -35,6 +37,7 @@ impl Engine {
 
         if let Ok(buildinfo_contents) = fs::read_to_string(buildinfo_path) {
             let name = extract_value_from_buildinfo(&buildinfo_contents, "NAME");
+            let datetime = extract_value_from_buildinfo(&buildinfo_contents, "_COMMIT_DATETIME");
             let id = format!(
                 "{}-{}",
                 name.as_ref().unwrap_or(&DEFAULT_NAME.to_string()),
@@ -43,6 +46,7 @@ impl Engine {
             Ok(Self {
                 id,
                 name,
+                datetime,
                 path,
                 buildinfo: Some(buildinfo_contents),
             })
@@ -59,6 +63,7 @@ impl Engine {
             Ok(Self {
                 id,
                 name: None,
+                datetime: None,
                 path,
                 buildinfo: None,
             })
