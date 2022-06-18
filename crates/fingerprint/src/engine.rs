@@ -81,7 +81,7 @@ pub fn get_buildinfo_path_from_engine_path(engine_path: &Path) -> Result<PathBuf
 
 /// Calculate the path to a built engine's BUILD-INFO file.
 pub fn extract_value_from_buildinfo(buildinfo: &str, key: &str) -> Option<String> {
-    let re = Regex::new(&format!("(?m)^ *{} *= *([[:alnum:]]+) *", key)).unwrap();
+    let re = Regex::new(&format!("(?m)^ *{} *= *([[[:alnum:]]-_:]+) *", key)).unwrap();
     for cap in re.captures_iter(buildinfo) {
         return Some(cap[1].to_string());
     }
@@ -111,6 +111,18 @@ mod tests {
         assert_eq!(
             extract_value_from_buildinfo(buildinfo, "NAME"),
             Some("wasmtime".to_string())
+        );
+    }
+    #[test]
+    fn find_datetime_in_buildinfo() {
+        let buildinfo = r#"
+        ...
+        _COMMIT_DATETIME=2022-06-14T12:48:15-07:00
+        ...
+        "#;
+        assert_eq!(
+            extract_value_from_buildinfo(buildinfo, "_COMMIT_DATETIME"),
+            Some("2022-06-14T12:48:15-07:00".to_string())
         );
     }
 }
