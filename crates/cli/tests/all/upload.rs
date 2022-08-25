@@ -1,6 +1,6 @@
 //! Test `sightglass-cli upload`.
 
-use super::util::{sightglass_cli, test_engine};
+use super::util::{benchmark, sightglass_cli, test_engine};
 use assert_cmd::prelude::*;
 use predicates::prelude::*;
 
@@ -20,9 +20,7 @@ fn upload_dryrun() {
 
     // Gather the fingerprints of the system under test.
     let engine = sightglass_fingerprint::Engine::fingerprint(test_engine()).unwrap();
-    let benchmark =
-        sightglass_fingerprint::Benchmark::fingerprint("../../benchmarks-next/noop/benchmark.wasm")
-            .unwrap();
+    let benchmark = sightglass_fingerprint::Benchmark::fingerprint(benchmark("noop")).unwrap();
     let machine = sightglass_fingerprint::Machine::fingerprint().unwrap();
 
     // Check that we upload measurement records for each of the measurements in the file.
