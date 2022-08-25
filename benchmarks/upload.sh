@@ -36,7 +36,7 @@ for COMMIT in $COMMITS; do
 
     if [[ ! -f $LOG ]]; then
         print_header "Benchmarking Wasmtime at $COMMIT"
-        (set -x; $PIN $SIGHTGLASS benchmark benchmarks-next/*/benchmark.wasm --engine $SO --raw > $LOG)
+        (set -x; $PIN $SIGHTGLASS benchmark benchmarks/*/benchmark.wasm --engine $SO --raw > $LOG)
     fi
 
     print_header "Benchmarking results at $COMMIT"
