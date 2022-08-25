@@ -56,3 +56,24 @@ To remove all data stored in the system:
    ```
    docker volume rm $(docker volume ls -q | grep ui_data)
    ```
+
+### Licensing
+
+One might wonder whether ElasticSearch as used here is permissible under the new
+licensing terms under which Elastic, the company, releases their product.
+Roughly, Elastic changed the license to prevent redistribution-without-payment
+by cloud providers (e.g., Amazon). Our use here, however, is not to sell
+ElasticSearch-as-a-service, but instead to use the default distribution for
+storing Sightglass data. This use should be more than acceptable under the terms
+of the new ELv2:
+
+> The license allows the free right to use, modify, create derivative works, and
+> redistribute, with three simple limitations:
+> - You may not provide the products to others as a managed service
+> - You may not circumvent the license key functionality or remove/obscure
+>   features protected by license keys
+> - You may not remove or obscure any licensing,
+>   copyright, or other notices
+
+From Elastic's [FAQ on 2021 License
+Change](https://www.elastic.co/pricing/faq/licensing#what-are-the-key-changes-being-made-to-the-elastic-license).
