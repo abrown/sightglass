@@ -1,22 +1,23 @@
-//! Provides [UploadMeasurement], a data type to convert to before uploading Sightglass
-//! [Measurement] objects to a server.
+//! Provides [UploadMeasurement], a data type to convert to before uploading
+//! Sightglass [Measurement] objects to a server.
 use serde::{Deserialize, Serialize};
 use sightglass_data::{Measurement, Phase};
-use std::borrow::Cow;
+use sightglass_fingerprint::{Benchmark, Engine, Machine};
+use std::{borrow::Cow, collections::HashMap};
 
 /// A conversion of a [Measurement], with fields replaced by fingerprinting.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct UploadMeasurement<'a> {
-    /// The ID of the machine on which this measurement was taken; this relies on `upload` to insert
-    /// the data for this ID.
+    /// The ID of the machine on which this measurement was taken; this relies
+    /// on `upload` to insert the data for this ID.
     pub machine: Cow<'a, str>,
 
-    /// The ID of the engine in which this measurement was taken; this relies on `upload` to insert
-    /// the data for this ID.
+    /// The ID of the engine in which this measurement was taken; this relies on
+    /// `upload` to insert the data for this ID.
     pub engine: Cow<'a, str>,
 
-    /// The ID of the benchmark with which this measurement was taken; this relies on `upload` to
-    /// insert the data for this ID.
+    /// The ID of the benchmark with which this measurement was taken; this
+    /// relies on `upload` to insert the data for this ID.
     pub benchmark: Cow<'a, str>,
 
     /// The id of the process within which this measurement was taken.
@@ -60,4 +61,29 @@ impl<'a> UploadMeasurement<'a> {
             count: measurement.count,
         }
     }
+
+    pub fn map_and_convert(
+        machine: &'a str,
+        engines: &'a HashMap<Cow<'_, str>, String>,
+        benchmarks: &'a HashMap<Cow<'_, str>, String>,
+        measurement: &'a Measurement,
+    ) -> Self {
+        let engine = engines.get(measurement.engine.as_ref()).unwrap().as_ref();
+        let benchmark = benchmarks.get(measurement.wasm.as_ref()).unwrap().as_ref();
+        Self::convert(&machine, engine, benchmark, measurement)
+    }
+}
+
+/// This container captures all of the measurement data from a single machine in
+/// a format that can be exported and later uploaded.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MeasurementPackage<'a> {
+    /// Store all the original measurements for upload.
+    pub measurements: Vec<Measurement<'a>>,
+    /// Map each engine path to its fingerprinted data.
+    pub engines: HashMap<Cow<'a, str>, Engine>,
+    /// Map each benchmark path to its fingerprinted data.
+    pub benchmarks: HashMap<Cow<'a, str>, Benchmark>,
+    /// Collect the machine fingerprint.
+    pub machine: Machine,
 }

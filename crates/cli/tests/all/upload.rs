@@ -24,10 +24,10 @@ fn upload_dryrun() {
     let machine = sightglass_fingerprint::Machine::fingerprint().unwrap();
 
     // Check that we upload measurement records for each of the measurements in the file.
-    let num_uploaded_measurements = stderr
-        .matches("Creating record in 'measurements' with ID None")
+    let num_uploaded_batches = stderr
+        .matches("Batching up 200 records to index 'measurements'")
         .count();
-    assert_eq!(num_uploaded_measurements, 600);
+    assert_eq!(num_uploaded_batches, 3);
 
     // Also, heck that we create records for the engine/machine/benchmark.
     use predicate::str::*;
