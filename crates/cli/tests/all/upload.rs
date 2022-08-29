@@ -11,6 +11,8 @@ fn upload_dryrun() {
         .arg("--dry-run")
         .arg("--input-file")
         .arg("tests/results.json")
+        .arg("--batch-size")
+        .arg("200")
         .env("RUST_LOG", "debug")
         .assert();
 

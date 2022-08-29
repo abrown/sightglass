@@ -17,7 +17,12 @@ use std::io;
 /// with fingerprinted data from the current server; this adds useful metadata
 /// to the results. E.g., the `arch` field in [Measurement] is expanded to the
 /// more-complete [Machine] fingerprint.
-pub fn upload(server: &str, dry_run: bool, measurements: Vec<Measurement>) -> Result<()> {
+pub fn upload(
+    server: &str,
+    batch_size: usize,
+    dry_run: bool,
+    measurements: Vec<Measurement>,
+) -> Result<()> {
     let package = package(measurements)?;
 
     if dry_run {
@@ -25,7 +30,7 @@ pub fn upload(server: &str, dry_run: bool, measurements: Vec<Measurement>) -> Re
             .context("failed to write measurement package to stdout")?;
     }
 
-    upload_package(server, dry_run, package)
+    upload_package(server, batch_size, dry_run, package)
 }
 
 /// Package up the [Measurement]s alongside the fingerprint data from the
@@ -75,7 +80,20 @@ pub fn package(measurements: Vec<Measurement>) -> Result<MeasurementPackage> {
 /// fingerprinted data that is already present in the database (e.g., we do not
 /// want multiple records for the same machine). If `dry_run` is set no records
 /// are actually inserted, only logged.
-pub fn upload_package(server: &str, dry_run: bool, package: MeasurementPackage) -> Result<()> {
+///
+/// As described in the [tuning documentation], the optimal ElasticSearch
+/// `batch_size` must be determined through experimentation. In a small
+/// experiment, increasing the batch size saw diminishing returns after
+/// `1000-2000`.
+///
+/// [tuning documentation]:
+///     https://www.elastic.co/guide/en/elasticsearch/reference/master/tune-for-indexing-speed.html#_use_bulk_requests
+pub fn upload_package(
+    server: &str,
+    batch_size: usize,
+    dry_run: bool,
+    package: MeasurementPackage,
+) -> Result<()> {
     let database = Database::new(server.to_string(), dry_run);
 
     // Insert each fingerprinted version of an engine.
@@ -99,7 +117,7 @@ pub fn upload_package(server: &str, dry_run: bool, package: MeasurementPackage) 
         database.create_if_not_exists("machines", &package.machine, &package.machine.id)?;
 
     // Insert all of the measurements.
-    for batch in package.measurements.chunks(BATCH_SIZE) {
+    for batch in package.measurements.chunks(batch_size) {
         let batch = batch
             .into_iter()
             .map(|m| UploadMeasurement::map_and_convert(&machine, &engines, &benchmarks, m))
@@ -109,11 +127,3 @@ pub fn upload_package(server: &str, dry_run: bool, package: MeasurementPackage) 
 
     Ok(())
 }
-
-// As described in the [tuning documentation], the optimal ElasticSearch batch
-// size must be determined through experimentation. This one is chosen rather
-// randomly, without such experimentation.
-//
-// [tuning documentation]:
-//     https://www.elastic.co/guide/en/elasticsearch/reference/master/tune-for-indexing-speed.html#_use_bulk_requests
-const BATCH_SIZE: usize = 200;

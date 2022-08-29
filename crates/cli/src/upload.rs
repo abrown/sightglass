@@ -38,6 +38,11 @@ pub struct UploadCommand {
     /// ignored.
     #[structopt(short = "p", long = "from-package")]
     from_package: Option<String>,
+
+    /// The number of measurements to upload together; this can speed up the
+    /// upload. Defaults to `2000`.
+    #[structopt(short = "b", long = "batch-size", default_value = "2000")]
+    batch_size: usize,
 }
 
 impl UploadCommand {
@@ -47,7 +52,7 @@ impl UploadCommand {
                 BufReader::new(File::open(file).context("unable to open --from-package path")?);
             let package: MeasurementPackage =
                 serde_json::from_reader(reader).context("unable to parse --from-package JSON")?;
-            upload_package(&self.server, self.dry_run, package)
+            upload_package(&self.server, self.batch_size, self.dry_run, package)
         } else {
             let file: Box<dyn Read> = if let Some(file) = self.input_file.as_ref() {
                 Box::new(BufReader::new(
@@ -57,7 +62,7 @@ impl UploadCommand {
                 Box::new(io::stdin())
             };
             let measurements: Vec<Measurement> = self.input_format.read(file)?;
-            upload(&self.server, self.dry_run, measurements)
+            upload(&self.server, self.batch_size, self.dry_run, measurements)
         }
     }
 }
