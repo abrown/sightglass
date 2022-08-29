@@ -41,6 +41,10 @@ pub struct UploadMeasurement<'a> {
     /// of microseconds if the event is wall time, or it might be a count of
     /// instructions if the event is instructions retired.
     pub count: u64,
+
+    /// When the measurement was collected into a package (not necessarily when
+    /// it was measured).
+    pub datetime: Cow<'a, str>,
 }
 
 impl<'a> UploadMeasurement<'a> {
@@ -48,6 +52,7 @@ impl<'a> UploadMeasurement<'a> {
         machine: &'a str,
         engine: &'a str,
         benchmark: &'a str,
+        datetime: &'a str,
         measurement: &'a Measurement,
     ) -> Self {
         Self {
@@ -59,6 +64,7 @@ impl<'a> UploadMeasurement<'a> {
             phase: measurement.phase,
             event: Cow::Borrowed(measurement.event.as_ref()),
             count: measurement.count,
+            datetime: Cow::Borrowed(datetime),
         }
     }
 
@@ -66,11 +72,12 @@ impl<'a> UploadMeasurement<'a> {
         machine: &'a str,
         engines: &'a HashMap<Cow<'_, str>, String>,
         benchmarks: &'a HashMap<Cow<'_, str>, String>,
+        datetime: &'a str,
         measurement: &'a Measurement,
     ) -> Self {
         let engine = engines.get(measurement.engine.as_ref()).unwrap().as_ref();
         let benchmark = benchmarks.get(measurement.wasm.as_ref()).unwrap().as_ref();
-        Self::convert(&machine, engine, benchmark, measurement)
+        Self::convert(&machine, engine, benchmark, datetime, measurement)
     }
 }
 
@@ -86,4 +93,7 @@ pub struct MeasurementPackage<'a> {
     pub benchmarks: HashMap<Cow<'a, str>, Benchmark>,
     /// Collect the machine fingerprint.
     pub machine: Machine,
+    /// When the measurements were collected into a package (not necessarily
+    /// when they were measured).
+    pub datetime: Cow<'a, str>,
 }

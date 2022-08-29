@@ -65,11 +65,15 @@ pub fn package(measurements: Vec<Measurement>) -> Result<MeasurementPackage> {
     // Fingerprint the current machine.
     let machine = Machine::fingerprint()?;
 
+    // Capture the current time.
+    let datetime = chrono::Local::now().to_rfc3339().into();
+
     Ok(MeasurementPackage {
         measurements,
         engines,
         benchmarks,
         machine,
+        datetime,
     })
 }
 
@@ -120,7 +124,15 @@ pub fn upload_package(
     for batch in package.measurements.chunks(batch_size) {
         let batch = batch
             .into_iter()
-            .map(|m| UploadMeasurement::map_and_convert(&machine, &engines, &benchmarks, m))
+            .map(|m| {
+                UploadMeasurement::map_and_convert(
+                    &machine,
+                    &engines,
+                    &benchmarks,
+                    &package.datetime,
+                    m,
+                )
+            })
             .collect::<Vec<_>>();
         database.create_batched("measurements", &batch)?;
     }
