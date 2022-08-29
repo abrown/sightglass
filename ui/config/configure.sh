@@ -9,7 +9,8 @@ set -e
 SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]:-$0}"; )" &> /dev/null && pwd 2> /dev/null; )";
 
 echo "==== Add datetime mappings to ElasticSearch ====="
-$SCRIPT_DIR/add-datetime-mapping.sh
+$SCRIPT_DIR/add-datetime-mapping.sh engines
+$SCRIPT_DIR/add-datetime-mapping.sh measurements
 echo
 
 echo "==== Import dashboards to Kibana ====="
